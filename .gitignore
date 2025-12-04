@@ -1,0 +1,111 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# PyTorch Model Files (large binary files)
+*.pth
+*.pt
+*.onnx
+*.trt
+*.engine
+*.mlmodel
+*.tflite
+
+# Checkpoints and Model Weights (trained models - too large)
+checkpoints/
+pretrained_weights/
+deployment_models/
+
+# Training Outputs and Logs
+*.log
+debug_logs/
+debug_tmp/
+training.log
+training_errors.log
+pipeline_run_*.log
+stage*.log
+
+# Metrics and Results (generated outputs)
+metrics_output/
+kfold_results/
+plots_metrics/
+ensembles/
+smoke_checks/
+
+# Dataset (too large for git - users should provide their own)
+Data/
+split_dataset/
+Diseases/
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+desktop.ini
+
+# Project Specific - Recovery/State Files
+.ensemble_recovery_state.json
+*_recovery_state.json
+
+# Temporary/Generated Scripts (keep originals only)
+complete_visualizations.py
+regenerate_correct_visualizations.py
+regenerate_viz_from_training.py
+
+# Output files
+*.txt
+!requirements.txt
+!README.txt
+pipeline_output.txt
+run_output.txt
+
+# Batch files (Windows specific)
+*.bat

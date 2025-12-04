@@ -1,0 +1,20 @@
+{
+  "include": [
+    "."
+  ],
+  "extraPaths": [
+    "../BASE-BACK/src"
+  ],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": [
+        "../BASE-BACK/src"
+      ],
+      "pythonVersion": "3.10"
+    }
+  ],
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": false,
+  "reportMissingModuleSource": false
+}

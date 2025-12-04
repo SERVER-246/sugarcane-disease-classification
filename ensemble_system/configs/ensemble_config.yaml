@@ -1,0 +1,590 @@
+# Ensemble Configuration File
+# Complete configuration for ensemble orchestration system
+
+project:
+  name: "disease_classification_ensemble"
+  version: "1.0.0"
+  description: "Ensemble system for 13-class sugarcane disease classification"
+
+# Device and reproducibility
+device: "cuda"  # "cuda" or "cpu"
+seed: 42
+
+# Dataset configuration (matches base training)
+dataset:
+  img_size: 224
+  batch_size: 32
+  num_workers: 16
+  num_classes: 13
+  
+  # Class names (must match base training)
+  classes:
+    - Black_stripe
+    - Brown_spot
+    - Grassy_shoot_disease
+    - Healthy
+    - Leaf_flecking
+    - Leaf_scorching
+    - Mosaic
+    - Pokkah_boeng
+    - Red_rot
+    - Ring_spot
+    - Smut
+    - Wilt
+    - Yellow_leaf_Disease
+
+# Backbone selection
+backbones:
+  # All 15 custom backbones from base training
+  include:
+    - CustomConvNeXt
+    - CustomEfficientNetV4
+    - CustomGhostNetV2
+    - CustomResNetMish
+    - CustomCSPDarkNet
+    - CustomInceptionV4
+    - CustomViTHybrid
+    - CustomSwinTransformer
+    - CustomCoAtNet
+    - CustomRegNet
+    - CustomDenseNetHybrid
+    - CustomDeiTStyle
+    - CustomMaxViT
+    - CustomMobileOne
+    - CustomDynamicConvNet
+  
+  # Optionally exclude specific backbones
+  exclude: []
+  
+  # Checkpoint type to load: 'head_best', 'finetune_best', or 'final'
+  checkpoint_type: "finetune_best"
+
+# Export configuration (mirrors base training)
+exports:
+  enable: true
+  formats:
+    - state_dict
+    - checkpoint
+    - torchscript
+    - onnx
+    - tflite
+    - tensorrt
+    - custom
+  
+  # Export validation
+  run_smoke_tests: true
+  save_checksums: true
+
+# Ensemble runs configuration
+runs:
+  # =========================================================================
+  # SCORE-LEVEL ENSEMBLES
+  # =========================================================================
+  score_ensemble:
+    enable: true
+    
+    methods:
+      - soft_voting        # Average probabilities
+      - hard_voting        # Majority vote
+      - logit_averaging    # Average logits before softmax
+      - weighted           # Optimized weights
+    
+    # Weight optimization
+    optimize_weights: true
+    optimization_metric: "f1_macro"  # "accuracy", "f1_macro", or "log_loss"
+    optimization_method: "SLSQP"     # scipy optimizer
+    
+    # Temperature scaling for logit averaging
+    temperature: 1.0
+    
+    # Save each ensemble type
+    save_individual: true
+    
+    # Export settings
+    export_all: true
+
+  # =========================================================================
+  # MODEL SOUPS (Weight-Space Averaging)
+  # =========================================================================
+  model_soup:
+    enable: true
+    
+    methods:
+      - uniform  # Simple average of all model weights
+      - greedy   # Incremental greedy selection
+    
+    # CRITICAL: Recompute BatchNorm statistics after averaging
+    recompute_bn: true
+    bn_num_batches: 100
+    
+    # Greedy soup configuration
+    greedy_config:
+      metric: "accuracy"  # Metric for selection
+      patience: 3         # Stop if no improvement for N models
+    
+    # Export soups
+    export_soups: true
+
+  # =========================================================================
+  # SNAPSHOT ENSEMBLES (requires retraining)
+  # =========================================================================
+  snapshot_ensemble:
+    enable: false  # Set to true to train snapshot ensembles
+    
+    # Base model to use for snapshot training
+    base_backbone: "CustomConvNeXt"
+    
+    # Snapshot configuration
+    n_snapshots: 5
+    epochs_per_cycle: 10
+    
+    # Cyclical learning rate
+    lr_max: 0.1
+    lr_min: 0.001
+    
+    # Save snapshots
+    save_all_snapshots: true
+
+  # =========================================================================
+  # STACKING ENSEMBLES (Meta-Learners)
+  # =========================================================================
+  stacking:
+    enable: true
+    
+    # Meta-learner types
+    meta_learners:
+      - lr   # Logistic Regression
+      - xgb  # XGBoost
+      - mlp  # Neural network
+      - rf   # Random Forest
+    
+    # Logistic Regression configuration
+    lr_config:
+      max_iter: 1000
+      solver: "lbfgs"
+      multi_class: "multinomial"
+      C: 1.0
+    
+    # XGBoost configuration
+    xgb_config:
+      n_estimators: 100
+      max_depth: 6
+      learning_rate: 0.1
+      min_child_weight: 1
+      subsample: 0.8
+      colsample_bytree: 0.8
+      tree_method: "hist"
+    
+    # Random Forest configuration
+    rf_config:
+      n_estimators: 100
+      max_depth: 20
+      min_samples_split: 5
+      min_samples_leaf: 2
+    
+    # MLP meta-learner configuration
+    mlp_config:
+      hidden_dims: [256, 128]
+      dropout: 0.3
+      epochs: 50
+      batch_size: 128
+      lr: 0.001
+      weight_decay: 0.0001
+      patience: 10
+      scheduler: "cosine"  # "cosine", "step", or "none"
+    
+    # Use OOF predictions from K-fold CV
+    use_oof: true
+    
+    # Validation split if not using OOF
+    val_split: 0.2
+    
+    # Export meta-learners
+    export_all: true
+
+  # =========================================================================
+  # FEATURE-LEVEL FUSION
+  # =========================================================================
+  fusion:
+    enable: true
+    
+    # Extract embeddings from all backbones
+    extract_embeddings: true
+    
+    # Embedding extraction configuration
+    embedding_config:
+      layer: "penultimate"  # Layer to extract from
+      save_to_disk: true
+      use_amp: true         # Mixed precision for extraction
+    
+    # Fusion methods
+    fusion_methods:
+      - concat_mlp      # Concatenate + MLP
+      - attention       # Attention-based gating
+      - bilinear        # Bilinear pooling
+      - cca_aligned     # CCA-aligned fusion
+      - compact_bilinear  # Compact bilinear pooling
+    
+    # Fusion head configuration
+    fusion_config:
+      # MLP configuration
+      hidden_dims: [512, 256]
+      dropout: 0.3
+      activation: "gelu"
+      
+      # Training
+      epochs: 40
+      batch_size: 64
+      lr: 0.001
+      weight_decay: 0.0001
+      patience: 10
+      scheduler: "cosine"
+      
+      # Attention configuration (for attention method)
+      attention_heads: 8
+      attention_dropout: 0.1
+      
+      # Bilinear configuration
+      bilinear_dim: 512
+      compact_rank: 256  # For compact bilinear
+    
+    # End-to-end fine-tuning (optional)
+    end_to_end: false
+    end_to_end_config:
+      freeze_epochs: 10  # Freeze backbones for N epochs
+      finetune_epochs: 20
+      backbone_lr: 0.00001
+      head_lr: 0.001
+    
+    # Export fusion models
+    export_all: true
+
+  # =========================================================================
+  # MIXTURE OF EXPERTS (MoE)
+  # =========================================================================
+  moe:
+    enable: false  # Experimental feature
+    
+    # Expert selection
+    num_experts: 5    # Subset of backbones to use as experts
+    expert_selection: "diversity"  # "accuracy", "diversity", or "manual"
+    manual_experts: []  # If selection="manual", specify backbone names
+    
+    # Routing configuration
+    top_k: 2          # Sparse routing: use top-k experts per sample
+    
+    # Gating network
+    gating_config:
+      input_type: "embeddings"  # "embeddings" or "image"
+      hidden_dim: 128
+      dropout: 0.2
+      temperature: 1.0  # Temperature for routing
+    
+    # Training
+    training_config:
+      epochs: 30
+      batch_size: 64
+      lr: 0.001
+      weight_decay: 0.0001
+      load_balance_loss_weight: 0.01  # Encourage balanced expert usage
+    
+    # Export MoE
+    export: true
+
+  # =========================================================================
+  # META-FUSER (Ensemble-of-Ensembles)
+  # =========================================================================
+  meta_fuser:
+    enable: true
+    
+    # Input ensembles (results from previous runs)
+    input_ensembles:
+      - soft_voting
+      - logit_averaging
+      - weighted_ensemble
+      - stacking_xgb
+      - stacking_mlp
+      - fusion_concat_mlp
+      - fusion_attention
+    
+    # Meta-fuser type
+    fuser_type: "xgb"  # "xgb", "mlp", "lr", or "attention"
+    
+    # Configuration per type
+    xgb_fuser_config:
+      n_estimators: 50
+      max_depth: 4
+      learning_rate: 0.05
+    
+    mlp_fuser_config:
+      hidden_dims: [128, 64]
+      dropout: 0.2
+      epochs: 30
+      lr: 0.001
+    
+    # Attention-based meta-fuser
+    attention_fuser_config:
+      num_heads: 4
+      hidden_dim: 64
+      dropout: 0.1
+      epochs: 30
+      lr: 0.001
+    
+    # Export meta-fuser
+    export: true
+
+# ============================================================================
+# ENSEMBLE PRUNING
+# ============================================================================
+pruning:
+  enable: true
+  
+  # Pruning methods
+  methods:
+    - greedy_forward       # Start empty, add best models
+    - greedy_backward      # Start full, remove worst models
+    - diversity_max        # Maximize pairwise disagreement
+    - clustering           # Cluster models and select representatives
+    - pareto_optimal       # Multi-objective (accuracy vs size/latency)
+  
+  # Target ensemble size
+  target_sizes: [3, 5, 7, 10]  # Try multiple sizes
+  
+  # Cost constraints (optional)
+  cost_budget:
+    enable: false
+    max_latency_ms: 100      # Maximum inference latency
+    max_size_mb: 500         # Maximum model size
+    max_flops: 10_000_000_000  # Maximum FLOPs
+  
+  # Clustering configuration
+  clustering_config:
+    method: "kmeans"  # "kmeans", "hierarchical", or "spectral"
+    metric: "prediction_similarity"  # or "weight_similarity"
+    n_clusters: 5
+  
+  # Diversity configuration
+  diversity_config:
+    metric: "disagreement"  # "disagreement", "correlation", or "kl_divergence"
+    min_diversity: 0.1      # Minimum pairwise diversity
+  
+  # Pareto optimization
+  pareto_config:
+    objectives:
+      - accuracy
+      - latency
+      - size
+    weights: [0.7, 0.2, 0.1]  # Relative importance
+  
+  # Save pruned ensembles
+  save_all_sizes: true
+  export_best: true
+
+# ============================================================================
+# KNOWLEDGE DISTILLATION
+# ============================================================================
+distillation:
+  enable: true
+  
+  # Teacher ensemble (any trained ensemble)
+  teacher: "meta_fuser"  # or "soft_voting", "stacking_xgb", etc.
+  
+  # Student model (lightweight backbone)
+  student: "CustomMobileOne"  # or create new lightweight model
+  
+  # Distillation configuration
+  temperature: 4.0      # Temperature for softening distributions
+  alpha: 0.5            # Weight for KL divergence loss (1-alpha for CE)
+  
+  # Training configuration
+  training_config:
+    epochs: 50
+    batch_size: 32
+    lr: 0.001
+    weight_decay: 0.0001
+    patience: 10
+    scheduler: "cosine"
+    
+    # Staged training (optional)
+    staged: false
+    stage1_epochs: 20  # Train with soft targets only
+    stage2_epochs: 30  # Train with both soft and hard targets
+  
+  # Data augmentation (stronger for distillation)
+  augmentation:
+    enable: true
+    mixup_alpha: 0.2
+    cutmix_alpha: 1.0
+    label_smoothing: 0.1
+  
+  # Export distilled student
+  export: true
+  
+  # Comparative evaluation
+  compare_to_teacher: true
+  compare_to_student_baseline: true  # Student trained from scratch
+
+# ============================================================================
+# DIVERSITY PROMOTION
+# ============================================================================
+diversity:
+  enable: true
+  
+  # Diversity metrics to compute
+  metrics:
+    - pairwise_disagreement
+    - correlation_coefficient
+    - kl_divergence
+    - q_statistic
+    - entropy
+  
+  # Diversity-aware selection
+  selection:
+    enable: true
+    method: "max_diversity"  # or "accuracy_diversity_tradeoff"
+    diversity_weight: 0.3    # Weight for diversity vs accuracy
+  
+  # Negative correlation learning (requires retraining)
+  negative_correlation:
+    enable: false
+    lambda: 0.5  # Strength of negative correlation loss
+  
+  # Save diversity analysis
+  save_analysis: true
+  plot_diversity_matrix: true
+
+# ============================================================================
+# EVALUATION
+# ============================================================================
+evaluation:
+  # Metrics to compute
+  metrics:
+    - accuracy
+    - f1_macro
+    - f1_weighted
+    - precision_macro
+    - recall_macro
+    - log_loss
+    - ece_calibration  # Expected Calibration Error
+    - confusion_matrix
+    - per_class_metrics
+    - roc_auc
+    - pr_auc
+  
+  # Inference timing
+  measure_latency: true
+  num_warmup_runs: 10
+  num_timing_runs: 100
+  
+  # Calibration
+  calibration:
+    enable: true
+    n_bins: 15
+    method: "equal_width"  # or "equal_frequency"
+  
+  # Uncertainty estimation
+  uncertainty:
+    enable: true
+    methods:
+      - entropy
+      - max_prob
+      - margin
+  
+  # Save results
+  save_predictions: true
+  save_probabilities: true
+  save_embeddings: false
+  
+  # Visualization
+  plot_confusion_matrix: true
+  plot_roc_curves: true
+  plot_pr_curves: true
+  plot_calibration: true
+
+# ============================================================================
+# LOGGING AND DEBUGGING
+# ============================================================================
+logging:
+  level: "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR"
+  save_to_file: true
+  log_file: "ensemble_system.log"
+  
+  # Progress bars
+  use_tqdm: true
+  tqdm_ncols: 100
+  
+  # Checkpointing
+  checkpoint_frequency: 5  # Save every N epochs
+  keep_last_n_checkpoints: 3
+
+debugging:
+  # Enable debugging mode
+  enable: false
+  
+  # Debug specific components
+  debug_components:
+    - discovery
+    - model_loading
+    - prediction_extraction
+    - ensemble_building
+  
+  # Fast mode (small dataset)
+  fast_mode: false
+  fast_mode_samples: 16
+  fast_mode_epochs: 1
+  
+  # Dry run (no actual execution)
+  dry_run: false
+  
+  # Memory profiling
+  profile_memory: false
+  
+  # Save intermediate results
+  save_intermediate: true
+
+# ============================================================================
+# RESOURCE MANAGEMENT
+# ============================================================================
+resources:
+  # Memory management
+  memory:
+    streaming_inference: true  # Load models one at a time
+    clear_cache_frequency: 1   # Clear CUDA cache every N models
+    max_models_in_memory: 3    # Maximum concurrent models
+  
+  # Multiprocessing
+  multiprocessing:
+    enable: true
+    num_workers: 16
+    prefetch_factor: 2
+  
+  # Mixed precision
+  amp:
+    enable: true
+    dtype: "float16"  # or "bfloat16"
+  
+  # Distributed training (for large ensembles)
+  distributed:
+    enable: false
+    backend: "nccl"
+    world_size: 1
+
+# ============================================================================
+# PATHS (mirrors base training structure)
+# ============================================================================
+paths:
+  # Base directories (from BASE-BACK)
+  base_dir: "F:/DBT-Base-DIr"
+  ckpt_dir: "checkpoints"
+  metrics_dir: "metrics_output"
+  kfold_dir: "kfold_results"
+  deploy_dir: "deployment_models"
+  plots_dir: "plots_metrics"
+  
+  # Ensemble-specific directories
+  ensemble_dir: "ensembles"
+  fusion_embeddings_dir: "ensembles/fusion_embeddings"
+  ensemble_catalog: "ensembles/ensemble_catalog.json"
+  
+  # Debug directory
+  debug_dir: "debug_tmp"
