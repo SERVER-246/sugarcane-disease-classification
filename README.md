@@ -268,10 +268,10 @@ If you use this code in your research, please cite:
 
 ```bibtex
 @software{sugarcane_disease_classification,
-  title = {Sugarcane Disease Classification with 15-COIN Ensemble},
+  title = {Sugarcane Disease Classification Ensemble},
   author = {DBT Project Team},
   year = {2025},
-  url = {https://github.com/yourusername/sugarcane-disease-classification}
+  url = {https://github.com/SERVER-246/sugarcane-disease-classification}
 }
 ```
 
