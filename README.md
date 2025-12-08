@@ -65,6 +65,10 @@ sugarcane-disease-classification/
 ├── PROJECT_SUMMARY.md            # 📖 Complete documentation
 ├── Base_backbones.py             # 15 backbone architectures
 │
+├── disease_classifier_gui.py     # 🖥️ Desktop GUI application
+├── image_validator.py            # 🛡️ Image validation module
+├── ANDROID_DEPLOYMENT_PLAN.md    # 📱 Mobile deployment roadmap
+│
 ├── ensemble_system/              # 7-stage ensemble pipeline
 │   ├── run_15coin_pipeline.py    # Pipeline orchestrator
 │   ├── stage1_predictions.py     # Individual predictions
@@ -239,12 +243,55 @@ WEIGHT_DECAY = 1e-4
 
 ---
 
+## 🖥️ Desktop GUI Application
+
+A visually stunning, scientific GUI for deploying the trained models.
+
+### Features
+
+- 🎯 **Smart Model Selection** - Primary: Distilled Student (93.21%, fast), Fallback: CustomMaxViT (95.39%)
+- 🛡️ **Intelligent Image Filtering** - Automatically rejects non-sugarcane images before classification
+- 📊 **Real-time Visualization** - Probability distribution charts and confidence bars
+- ⚙️ **Adjustable Confidence Threshold** - Control minimum confidence for valid predictions
+- 📁 **Batch Processing** - Process multiple images at once
+- 💾 **Export Results** - Save to CSV/JSON formats
+
+### Running the GUI
+
+```bash
+# From project root
+python disease_classifier_gui.py
+```
+
+### Image Validation
+
+The GUI includes a multi-factor image validator that filters out non-sugarcane images:
+
+| Validation Factor | Description |
+|-------------------|-------------|
+| **Image Quality** | Checks dimensions, format, and clarity |
+| **Vegetation Score** | Analyzes green content and color distribution |
+| **Sugarcane Match** | Compares texture and patterns to sugarcane leaves |
+
+Images that fail validation are rejected **before** reaching the classification model, preventing false predictions on unrelated content.
+
+### Screenshots
+
+The GUI features a modern dark scientific theme with:
+- Left panel: Image preview and upload
+- Center panel: Classification results and disease information
+- Right panel: Probability distribution chart
+- Bottom: Confidence slider and status bar
+
+---
+
 ## 📖 Documentation
 
 For comprehensive documentation, see:
 
 - **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Complete technical documentation
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Code architecture guide
+- **[ANDROID_DEPLOYMENT_PLAN.md](ANDROID_DEPLOYMENT_PLAN.md)** - Mobile deployment roadmap
 
 ---
 
