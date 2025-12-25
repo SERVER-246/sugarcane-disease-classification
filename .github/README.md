@@ -28,7 +28,7 @@
 
 ```bash
 # Clone and navigate
-git clone https://github.com/yourusername/sugarcane-disease-classification.git
+git clone https://github.com/SERVER-246/sugarcane-disease-classification.git
 cd sugarcane-disease-classification
 
 # Run interactive setup
