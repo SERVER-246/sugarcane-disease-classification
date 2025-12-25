@@ -138,31 +138,6 @@ pip install torch torchvision numpy pandas scikit-learn xgboost matplotlib seabo
 pip install onnx onnxruntime tensorrt coremltools
 ```
 
----
-
-## 📈 Dataset
-
-**13 Sugarcane Disease Classes:**
-
-| ID | Disease             | Training Samples |
-| -- | ------------------- | ---------------- |
-| 1  | Black Stripe        | 523              |
-| 2  | Brown Spot          | 1,064            |
-| 3  | Grassy Shoot        | 465              |
-| 4  | Healthy             | 701              |
-| 5  | Leaf Flecking       | 513              |
-| 6  | Leaf Scorching      | 504              |
-| 7  | Mosaic              | 500              |
-| 8  | Pokkah Boeng        | 1,095            |
-| 9  | Red Rot             | 809              |
-| 10 | Ring Spot           | 528              |
-| 11 | Smut                | 1,038            |
-| 12 | Wilt                | 243              |
-| 13 | Yellow Leaf Disease | 502              |
-
-**Total: 10,607 images** (8,485 train / 1,061 val / 1,061 test)
-
----
 
 ## 🎯 Training Pipeline
 
