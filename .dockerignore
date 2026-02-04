@@ -127,3 +127,5 @@ Makefile
 LICENSE
 *.txt
 !requirements.txt
+!requirements-ci.txt
+!requirements-dev.txt
