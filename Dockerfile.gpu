@@ -8,7 +8,8 @@
 # ============================================================================
 
 # Base image with CUDA 12.4 support
-FROM nvidia/cuda:12.4.0-cudnn-runtime-ubuntu22.04 as base
+# Note: Using runtime image (not cudnn-runtime which doesn't exist for 12.4)
+FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04 as base
 
 # Set build-time environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

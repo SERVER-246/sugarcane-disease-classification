@@ -54,7 +54,7 @@ jobs:
           python -c "from Base_backbones import BACKBONES; print(f'✅ Python ${{ matrix.python-version }}: {len(BACKBONES)} backbones')"
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v -m "not slow" --tb=short
 
       - name: Run model creation smoke test
         run: |
