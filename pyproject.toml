@@ -1,0 +1,205 @@
+# ============================================================================
+# DISEASE Pipeline - Project Configuration
+# ============================================================================
+# Created: Sprint 1 - Repository Integrity & Safety Baseline
+# Purpose: Unified tooling configuration for the disease classification pipeline
+# ============================================================================
+
+[project]
+name = "disease-classification-pipeline"
+version = "1.0.0"
+description = "PyTorch-based disease classification framework with 15 custom neural network architectures"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9,<3.13"
+authors = [
+    { name = "DISEASE Pipeline Team" }
+]
+keywords = ["deep-learning", "pytorch", "disease-classification", "computer-vision", "transfer-learning"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "pyright>=1.1.350",
+    "vulture>=2.11",
+    "pre-commit>=3.7.0",
+]
+
+# =============================================================================
+# Ruff Configuration
+# =============================================================================
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+exclude = [
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "checkpoints",
+    "deployment_models",
+    "Data",
+    "split_dataset",
+    "kfold_results",
+    "plots_metrics",
+    "debug_logs",
+    "debug_tmp",
+    "pretrained_weights",
+    "smoke_checks",
+    "metrics_output",
+    "Diseases",
+]
+
+[tool.ruff.lint]
+# Enable these rule categories
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+
+# Ignore these specific rules
+ignore = [
+    "E501",   # line too long (handled by line-length)
+    "E741",   # ambiguous variable name (common in ML code: l, I, O)
+    "B008",   # do not perform function calls in argument defaults
+    "B905",   # zip without explicit strict parameter
+    "SIM108", # use ternary operator (reduces readability in complex cases)
+    "ARG001", # unused function argument (common in PyTorch hooks)
+    "ARG002", # unused method argument
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["Base_backbones", "disease_classifier_gui", "image_validator"]
+force-single-line = false
+lines-after-imports = 2
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# =============================================================================
+# Pytest Configuration
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests", "BASE-BACK/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-ra",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests that require GPU",
+    "integration: marks integration tests",
+    "smoke: marks smoke tests for quick validation",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# =============================================================================
+# Coverage Configuration
+# =============================================================================
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "setup.py",
+]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+precision = 2
+
+# =============================================================================
+# MyPy Configuration
+# =============================================================================
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = [
+    "checkpoints/",
+    "deployment_models/",
+    "Data/",
+    "split_dataset/",
+    "__pycache__/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "torchvision.*",
+    "numpy.*",
+    "pandas.*",
+    "sklearn.*",
+    "onnx.*",
+    "onnxruntime.*",
+    "PIL.*",
+    "cv2.*",
+    "matplotlib.*",
+    "seaborn.*",
+    "xgboost.*",
+    "tqdm.*",
+    "timm.*",
+]
+ignore_missing_imports = true
+
+# =============================================================================
+# Vulture Configuration (dead code detection)
+# =============================================================================
+[tool.vulture]
+min_confidence = 80
+exclude = [
+    "__pycache__",
+    ".git",
+    "checkpoints",
+    "deployment_models",
+    "Data",
+    "split_dataset",
+]

@@ -1,0 +1,63 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+    "include": [
+        "."
+    ],
+    "exclude": [
+        "__pycache__",
+        ".git",
+        ".venv",
+        "venv",
+        "checkpoints",
+        "deployment_models",
+        "Data",
+        "split_dataset",
+        "kfold_results",
+        "plots_metrics",
+        "debug_logs",
+        "debug_tmp",
+        "pretrained_weights",
+        "smoke_checks",
+        "metrics_output",
+        "Diseases",
+        "ensembles"
+    ],
+    "pythonVersion": "3.10",
+    "pythonPlatform": "All",
+    "typeCheckingMode": "basic",
+    "reportMissingImports": "warning",
+    "reportMissingTypeStubs": false,
+    "reportUnusedImport": "warning",
+    "reportUnusedVariable": "warning",
+    "reportUnusedClass": "warning",
+    "reportUnusedFunction": "warning",
+    "reportDuplicateImport": "warning",
+    "reportPrivateUsage": "warning",
+    "reportConstantRedefinition": "warning",
+    "reportIncompatibleMethodOverride": "warning",
+    "reportIncompatibleVariableOverride": "warning",
+    "reportOptionalMemberAccess": "warning",
+    "reportOptionalCall": "warning",
+    "reportOptionalIterable": "warning",
+    "reportOptionalContextManager": "warning",
+    "reportOptionalOperand": "warning",
+    "reportUntypedFunctionDecorator": false,
+    "reportUntypedClassDecorator": false,
+    "reportUntypedBaseClass": false,
+    "reportUntypedNamedTuple": false,
+    "reportGeneralTypeIssues": "warning",
+    "reportArgumentType": "warning",
+    "reportReturnType": "warning",
+    "reportPossiblyUnboundVariable": "warning",
+    "executionEnvironments": [
+        {
+            "root": ".",
+            "pythonVersion": "3.10",
+            "extraPaths": [
+                ".",
+                "BASE-BACK/src",
+                "ensemble_system"
+            ]
+        }
+    ]
+}

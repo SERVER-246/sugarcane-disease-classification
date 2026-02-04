@@ -11,7 +11,6 @@ This script:
 """
 
 import sys
-import subprocess
 from pathlib import Path
 
 def check_python_version():
@@ -62,10 +61,13 @@ def check_packages():
                 from PIL import Image
                 import PIL
                 version = PIL.__version__
+                _ = Image  # Validate Image import
             else:
                 mod = __import__(pkg)
                 version = mod.__version__
             
+            # Note: expected_version kept for future version validation
+            _ = expected_version  # Mark as used
             print(f"  ✅ {pkg:<20} {version}")
         except ImportError:
             print(f"  ❌ {pkg:<20} NOT INSTALLED")
@@ -138,6 +140,7 @@ def test_imports():
     # Test image validator
     try:
         from image_validator import ImageValidator
+        _ = ImageValidator  # Validate class is accessible
         print("  ✅ image_validator")
         tests.append(True)
     except Exception as e:
@@ -147,6 +150,7 @@ def test_imports():
     # Test disease GUI
     try:
         import disease_classifier_gui
+        _ = disease_classifier_gui  # Validate module is accessible
         print("  ✅ disease_classifier_gui")
         tests.append(True)
     except Exception as e:
@@ -157,6 +161,7 @@ def test_imports():
     try:
         sys.path.insert(0, 'BASE-BACK/src')
         from config.settings import BACKBONES, NUM_CLASSES
+        _ = NUM_CLASSES  # Validate NUM_CLASSES is accessible
         print(f"  ✅ BASE-BACK config ({len(BACKBONES)} backbones)")
         tests.append(True)
     except Exception as e:

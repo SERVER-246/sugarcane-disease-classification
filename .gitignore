@@ -95,6 +95,9 @@ desktop.ini
 .ensemble_recovery_state.json
 *_recovery_state.json
 
+# Project Specific - Other Reports (keep DISEASE report, exclude PEST)
+PROJECT_OVERSEER_REPORT_PEST.md
+
 # Temporary/Generated Scripts (keep originals only)
 complete_visualizations.py
 regenerate_correct_visualizations.py

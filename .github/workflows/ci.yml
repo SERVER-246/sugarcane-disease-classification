@@ -1,0 +1,202 @@
+# ============================================================================
+# DISEASE Classification Pipeline - Main CI Workflow
+# ============================================================================
+# Created: Sprint 2 - CI/CD Without Behavior Change
+# Triggers: Push to main/develop, Pull requests to main
+# Purpose: Automated linting, type checking, and testing
+# ============================================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONDONTWRITEBYTECODE: 1
+
+jobs:
+  # ===========================================================================
+  # Linting with Ruff
+  # ===========================================================================
+  lint:
+    name: Lint (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff linter
+        run: ruff check . --output-format=github
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
+
+  # ===========================================================================
+  # Type Checking with Pyright
+  # ===========================================================================
+  typecheck:
+    name: Type Check (Pyright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyright
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt || true
+
+      - name: Run Pyright
+        run: pyright . --warnings
+        continue-on-error: true  # Type errors logged but don't fail build yet
+
+  # ===========================================================================
+  # Unit Tests (Ubuntu + Windows)
+  # ===========================================================================
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10"]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install PyTorch (CPU)
+        run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        run: pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ===========================================================================
+  # Build Check (Verify imports work)
+  # ===========================================================================
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install PyTorch (CPU)
+        run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt || true
+
+      - name: Verify Base_backbones import
+        run: |
+          python -c "from Base_backbones import create_custom_backbone, BACKBONES; print(f'✅ Import successful: {len(BACKBONES)} backbones available')"
+
+      - name: Verify model creation
+        run: |
+          python -c "
+          from Base_backbones import create_custom_backbone
+          model = create_custom_backbone('CustomConvNeXt', 13)
+          print(f'✅ Model created: {sum(p.numel() for p in model.parameters()):,} parameters')
+          "
+
+  # ===========================================================================
+  # Security Scan
+  # ===========================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit security scan
+        run: bandit -r . -x ./tests,./checkpoints,./Data,./split_dataset,./.git -ll -ii
+        continue-on-error: true  # Log issues but don't fail build
+
+  # ===========================================================================
+  # All Checks Summary
+  # ===========================================================================
+  ci-success:
+    name: CI Success
+    needs: [lint, typecheck, test, build-check, security]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "❌ Lint failed"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ Tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.build-check.result }}" != "success" ]; then
+            echo "❌ Build check failed"
+            exit 1
+          fi
+          echo "✅ All required CI checks passed"

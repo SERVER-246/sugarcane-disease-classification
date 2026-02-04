@@ -1,0 +1,95 @@
+# ============================================================================
+# DISEASE Classification Pipeline - Docker Compose
+# ============================================================================
+# Created: Sprint 2 - CI/CD Without Behavior Change
+# Purpose: Multi-container orchestration for CPU and GPU services
+# Usage: docker-compose up -d
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # CPU Inference Service
+  # ===========================================================================
+  classifier-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    image: disease-classifier:cpu-latest
+    container_name: disease-classifier-cpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONIOENCODING=utf-8
+      - TF_CPP_MIN_LOG_LEVEL=3
+    healthcheck:
+      test: ["CMD", "python", "-c", "from Base_backbones import BACKBONES; print(len(BACKBONES))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+  # ===========================================================================
+  # GPU Inference Service (requires NVIDIA Container Toolkit)
+  # ===========================================================================
+  classifier-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: disease-classifier:gpu-latest
+    container_name: disease-classifier-gpu
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - PYTHONIOENCODING=utf-8
+      - TF_CPP_MIN_LOG_LEVEL=3
+      - NVIDIA_VISIBLE_DEVICES=all
+    healthcheck:
+      test: ["CMD", "python", "-c", "import torch; assert torch.cuda.is_available()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+        limits:
+          memory: 16G
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  checkpoints:
+    driver: local
+  uploads:
+    driver: local
+  outputs:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  default:
+    name: disease-classifier-network
+    driver: bridge

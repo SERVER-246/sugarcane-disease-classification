@@ -1,0 +1,110 @@
+# ============================================================================
+# DISEASE Classification Pipeline - GPU Docker Image
+# ============================================================================
+# Created: Sprint 2 - CI/CD Without Behavior Change
+# Purpose: CUDA-enabled GPU inference Docker image
+# Usage: docker build -f Dockerfile.gpu -t disease-classifier:gpu-latest .
+# Note: Requires NVIDIA Container Toolkit for runtime
+# ============================================================================
+
+# Base image with CUDA 12.4 support
+FROM nvidia/cuda:12.4.0-cudnn-runtime-ubuntu22.04 as base
+
+# Set build-time environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.10
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3.10-venv \
+    python3-pip \
+    build-essential \
+    libgomp1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python 3.10 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 \
+    && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
+WORKDIR /build
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install CUDA-enabled PyTorch
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# Install other dependencies
+RUN pip install --no-cache-dir -r requirements.txt || true
+
+# =============================================================================
+# Production Image
+# =============================================================================
+FROM nvidia/cuda:12.4.0-cudnn-runtime-ubuntu22.04 as production
+
+# Set runtime environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=utf-8 \
+    TF_CPP_MIN_LOG_LEVEL=3 \
+    TF_ENABLE_ONEDNN_OPTS=0 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Install Python 3.10 and runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3-pip \
+    libgomp1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python 3.10 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+# Create non-root user for security
+RUN groupadd -r classifier && useradd -r -g classifier classifier
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=base /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
+COPY --from=base /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY Base_backbones.py .
+COPY image_validator.py .
+COPY disease_classifier_gui.py .
+COPY BASE-BACK/ ./BASE-BACK/
+COPY ensemble_system/ ./ensemble_system/
+
+# Copy checkpoints if they exist (optional)
+# COPY checkpoints/ ./checkpoints/
+
+# Create directories for runtime data
+RUN mkdir -p /app/checkpoints /app/uploads /app/outputs \
+    && chown -R classifier:classifier /app
+
+# Switch to non-root user
+USER classifier
+
+# Expose port for inference server (if added later)
+EXPOSE 8000
+
+# Health check - verify CUDA is available
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; print('OK')" || exit 1
+
+# Default command - verify GPU installation
+CMD ["python", "-c", "import torch; from Base_backbones import BACKBONES; cuda_status = 'CUDA available' if torch.cuda.is_available() else 'CPU only'; print(f'Disease Classifier ready: {len(BACKBONES)} backbones, PyTorch {torch.__version__}, {cuda_status}')"]
