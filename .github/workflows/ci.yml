@@ -69,7 +69,7 @@ jobs:
           pip install --upgrade pip
           pip install pyright
           pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements.txt || true
+          pip install -r requirements-ci.txt
 
       - name: Run Pyright
         run: pyright . --warnings
@@ -103,8 +103,12 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt || true
-          pip install -r requirements-dev.txt
+          # Install test dependencies first (required for pytest)
+          pip install pytest pytest-cov pytest-xdist pytest-timeout
+          # Install CI-specific requirements (CPU-compatible)
+          pip install -r requirements-ci.txt
+          # Install remaining dev dependencies
+          pip install -r requirements-dev.txt || true
 
       - name: Run tests with coverage
         run: pytest tests/ -v -m "not slow" --tb=short --cov=. --cov-report=xml --cov-report=term-missing
@@ -139,7 +143,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt || true
+          pip install -r requirements-ci.txt
 
       - name: Verify Base_backbones import
         run: |
