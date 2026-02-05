@@ -92,15 +92,18 @@ class TestProjectImports:
 
     def test_import_disease_classifier_gui(self):
         """Test disease_classifier_gui module import (skip if no display)."""
+        # First check if tkinter is available (may not be in headless CI)
         try:
-            import disease_classifier_gui
-            # Verify module has expected attributes
-            assert disease_classifier_gui is not None
-        except Exception as e:
-            # GUI imports may fail in headless environments
-            if "display" in str(e).lower() or "tk" in str(e).lower():
-                pytest.skip("GUI not available in headless environment")
-            raise
+            import tkinter as tk
+            # Try to create a Tk root to verify display is available
+            root = tk.Tk()
+            root.destroy()
+        except Exception:
+            pytest.skip("Tkinter/display not available in CI environment")
+        
+        # If tkinter works, import the GUI module
+        import disease_classifier_gui
+        assert disease_classifier_gui is not None
 
 
 class TestExportImports:

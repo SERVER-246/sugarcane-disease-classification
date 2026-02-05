@@ -1,17 +1,19 @@
 """Core utilities: logging, device management, reproducibility"""
 
-import os
-import sys
+import hashlib
+import json
 import logging
+import os
+import platform
 import random
+import sys
+import time
+from collections import deque
+from pathlib import Path
+
 import numpy as np
 import torch
-import platform
-import hashlib
-import time
-import json
-from pathlib import Path
-from collections import deque
+
 
 # Handle both package imports and direct sys.path imports
 try:
@@ -64,11 +66,11 @@ class DedupLogger:
     def __init__(self, name="disease_pipeline"):
         self.logger = logging.getLogger(name)
         self.logger.propagate = False
-        
+
         self.message_cache = deque(maxlen=50)
         self.last_message_time = {}
         self.system_info_logged = False
-        
+
         if not self.logger.handlers:
             ch = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
@@ -77,9 +79,9 @@ class DedupLogger:
             )
             ch.setFormatter(formatter)
             self.logger.addHandler(ch)
-            
+
             from logging.handlers import RotatingFileHandler
-            
+
             fh = RotatingFileHandler(
                 Path.cwd() / 'training.log',
                 maxBytes=10*1024*1024,
@@ -87,7 +89,7 @@ class DedupLogger:
             )
             fh.setFormatter(formatter)
             self.logger.addHandler(fh)
-            
+
             error_fh = RotatingFileHandler(
                 Path.cwd() / 'training_errors.log',
                 maxBytes=5*1024*1024,
@@ -96,45 +98,45 @@ class DedupLogger:
             error_fh.setLevel(logging.ERROR)
             error_fh.setFormatter(formatter)
             self.logger.addHandler(error_fh)
-        
+
         self.logger.setLevel(logging.INFO)
-    
+
     def _hash_message(self, msg):
         """Create hash of message for de-duplication"""
         return hashlib.md5(msg.encode()).hexdigest()[:8]
-    
+
     def _should_log(self, msg, level, dedupe_window=5.0):
         """Check if message should be logged based on de-duplication rules"""
         msg_hash = self._hash_message(msg)
         current_time = time.time()
-        
+
         if msg_hash in self.last_message_time:
             last_time = self.last_message_time[msg_hash]
             if current_time - last_time < dedupe_window:
                 return False
-        
+
         self.last_message_time[msg_hash] = current_time
         return True
-    
+
     def info(self, msg, dedupe=False):
         if not dedupe or self._should_log(msg, 'INFO'):
             self.logger.info(msg)
-    
+
     def debug(self, msg, dedupe=False):
         if not dedupe or self._should_log(msg, 'DEBUG'):
             self.logger.debug(msg)
-    
+
     def warning(self, msg, dedupe=False):
         if not dedupe or self._should_log(msg, 'WARNING'):
             self.logger.warning(msg)
-    
+
     def error(self, msg, dedupe=False):
         if not dedupe or self._should_log(msg, 'ERROR'):
             self.logger.error(msg)
-    
+
     def exception(self, msg):
         self.logger.exception(msg)
-    
+
     def log_system_info_once(self):
         """Log system information only once"""
         if not self.system_info_logged:
@@ -152,7 +154,7 @@ class SmokeCheckLogger:
     def __init__(self):
         self.checks = []
         self.log_file = DEBUG_LOG_DIR / f'smoke_check_{time.strftime("%Y%m%d_%H%M%S")}.log'
-        
+
     def log_check(self, check_name, status, details=""):
         """Log a smoke check result"""
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -163,20 +165,20 @@ class SmokeCheckLogger:
             'details': details
         }
         self.checks.append(check_result)
-        
+
         status_symbol = "[PASS]" if status == "PASS" else "[FAIL]"
         log_msg = f"{status_symbol} {check_name}: {status}"
         if details:
             log_msg += f" - {details}"
-        
+
         logger.info(log_msg)
-        
+
         with open(self.log_file, 'a') as f:
             f.write(f"{timestamp} | {status_symbol} {check_name}: {status}")
             if details:
                 f.write(f" - {details}")
             f.write("\n")
-    
+
     def save_summary(self):
         """Save smoke check summary"""
         import json
@@ -187,10 +189,10 @@ class SmokeCheckLogger:
             'failed': sum(1 for c in self.checks if c['status'] == 'FAIL'),
             'checks': self.checks
         }
-        
+
         with open(summary_file, 'w') as f:
             json.dump(summary, f, indent=2)
-        
+
         logger.info(f"Smoke check summary: {summary['passed']}/{summary['total_checks']} passed")
         return summary
 

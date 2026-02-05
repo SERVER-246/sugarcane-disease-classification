@@ -1,41 +1,41 @@
 """Models package - backbone architectures and factories"""
 
 from .architectures import (
-    create_custom_backbone,
-    create_custom_backbone_safe,
     BACKBONE_MAP,
+    CustomCoAtNet,
     # All architecture classes
     CustomConvNeXt,
+    CustomCSPDarkNet,
+    CustomDeiTStyle,
+    CustomDenseNetHybrid,
+    CustomDynamicConvNet,
     CustomEfficientNetV4,
     CustomGhostNetV2,
-    CustomResNetMish,
-    CustomCSPDarkNet,
     CustomInceptionV4,
-    CustomViTHybrid,
-    CustomSwinTransformer,
-    CustomCoAtNet,
-    CustomRegNet,
-    CustomDenseNetHybrid,
-    CustomDeiTStyle,
     CustomMaxViT,
     CustomMobileOne,
-    CustomDynamicConvNet,
+    CustomRegNet,
+    CustomResNetMish,
+    CustomSwinTransformer,
+    CustomViTHybrid,
+    create_custom_backbone,
+    create_custom_backbone_safe,
 )
-
 from .blocks import (
-    get_activation_fn,
-    CoreImageBlock,
     ConvNeXtBlock,
-    InvertedResidualBlock,
-    GhostModule,
-    MishBottleneck,
+    CoreImageBlock,
     CSPBlock,
-    InceptionModule,
     DenseBlock,
+    GhostModule,
+    InceptionModule,
+    InvertedResidualBlock,
+    MishBottleneck,
     MultiHeadSelfAttention,
     TransformerEncoderBlock,
     TransformerEncoderBlockWithLayerScale,
+    get_activation_fn,
 )
+
 
 __all__ = [
     'create_custom_backbone',
