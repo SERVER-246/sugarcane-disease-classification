@@ -1,22 +1,21 @@
 """Dataset loading, preparation, and transforms"""
 
-import os
 import shutil
 from pathlib import Path
 
 import numpy as np
 import torch
 from PIL import Image
-from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 
 # Handle both package imports and direct sys.path imports
 try:
-    from ..config.settings import BATCH_SIZE, IMG_SIZE, RAW_DIR, SEED, SPLIT_DIR, TEST_DIR, TRAIN_DIR, VAL_DIR
+    from ..config.settings import IMG_SIZE, RAW_DIR, SEED, SPLIT_DIR, TEST_DIR, TRAIN_DIR, VAL_DIR
 except ImportError:
-    from config.settings import BATCH_SIZE, IMG_SIZE, RAW_DIR, SEED, SPLIT_DIR, TEST_DIR, TRAIN_DIR, VAL_DIR
+    from config.settings import IMG_SIZE, RAW_DIR, SEED, SPLIT_DIR, TEST_DIR, TRAIN_DIR, VAL_DIR
 
 from . import OPTIMAL_WORKERS, logger
 
@@ -173,7 +172,7 @@ def create_optimized_dataloader(dataset, batch_size, shuffle=True, num_workers=N
 # DATASET PREPARATION
 # =============================================================================
 
-def prepare_optimized_datasets(raw_dir=RAW_DIR, split_dir=SPLIT_DIR, 
+def prepare_optimized_datasets(raw_dir=RAW_DIR, split_dir=SPLIT_DIR,
                               train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, seed=SEED):
     """Optimized dataset preparation"""
     raw_dir = Path(raw_dir)
@@ -191,7 +190,7 @@ def prepare_optimized_datasets(raw_dir=RAW_DIR, split_dir=SPLIT_DIR,
     for d in [TRAIN_DIR, VAL_DIR, TEST_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
-    classes = sorted([d.name for d in raw_dir.iterdir() if d.is_dir()]) 
+    classes = sorted([d.name for d in raw_dir.iterdir() if d.is_dir()])
     all_samples = []
 
     for cls in classes:

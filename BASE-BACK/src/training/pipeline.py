@@ -1,7 +1,5 @@
 """Training pipeline - model training, validation, and metrics"""
 
-import json
-import time
 from pathlib import Path
 
 import numpy as np
@@ -15,35 +13,13 @@ from tqdm.auto import tqdm
 
 # Handle both package imports and direct sys.path imports
 try:
-    from ..config.settings import (
-        BACKBONE_LR,
-        BATCH_SIZE,
-        CKPT_DIR,
-        EPOCHS_FINETUNE,
-        EPOCHS_HEAD,
-        HEAD_LR,
-        IMG_SIZE,
-        METRICS_DIR,
-        PATIENCE_FT,
-        PATIENCE_HEAD,
-        WEIGHT_DECAY,
-    )
-    from ..utils import DEVICE, get_device, logger
+    from ..config.settings import WEIGHT_DECAY
+    from ..utils import DEVICE, logger
 except ImportError:
     from config.settings import (
-        BACKBONE_LR,
-        BATCH_SIZE,
-        CKPT_DIR,
-        EPOCHS_FINETUNE,
-        EPOCHS_HEAD,
-        HEAD_LR,
-        IMG_SIZE,
-        METRICS_DIR,
-        PATIENCE_FT,
-        PATIENCE_HEAD,
         WEIGHT_DECAY,
     )
-    from utils import DEVICE, get_device, logger
+    from utils import DEVICE, logger
 
 # =============================================================================
 # TRAINING HELPERS
@@ -56,7 +32,8 @@ def _unwrap_logits(outputs):
     if hasattr(outputs, 'logits'):
         return outputs.logits, getattr(outputs, 'aux_logits', None)
     if isinstance(outputs, (tuple, list)):
-        main = None; aux = None
+        main = None
+        aux = None
         for o in outputs:
             if isinstance(o, torch.Tensor) and main is None:
                 main = o
@@ -72,7 +49,7 @@ def _unwrap_logits(outputs):
 
 def get_loss_function_for_backbone(backbone_name, num_classes):
     """Get optimized loss function per backbone"""
-    transformer_models = ['CustomSwinTransformer', 'CustomViTHybrid', 
+    transformer_models = ['CustomSwinTransformer', 'CustomViTHybrid',
                          'CustomDeiTStyle', 'CustomCoAtNet', 'CustomMaxViT']
 
     if backbone_name in transformer_models:
@@ -121,7 +98,7 @@ def create_optimized_optimizer(model, lr, backbone_name):
 
 def create_improved_scheduler(optimizer, epochs, steps_per_epoch, backbone_name):
     """Create learning rate scheduler"""
-    transformer_models = ['CustomSwinTransformer', 'CustomViTHybrid', 
+    transformer_models = ['CustomSwinTransformer', 'CustomViTHybrid',
                          'CustomDeiTStyle', 'CustomCoAtNet', 'CustomMaxViT']
 
     if backbone_name in transformer_models:
@@ -136,7 +113,7 @@ def create_improved_scheduler(optimizer, epochs, steps_per_epoch, backbone_name)
         return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     else:
         return optim.lr_scheduler.OneCycleLR(
-            optimizer, 
+            optimizer,
             max_lr=optimizer.param_groups[0]['lr'] * 5,
             epochs=epochs,
             steps_per_epoch=steps_per_epoch,

@@ -44,8 +44,8 @@ def plot_confusion_matrix(y_true, y_pred, class_names, save_path, title="Confusi
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
 
         # Plot 1: Raw counts
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                    xticklabels=class_names, yticklabels=class_names, 
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                    xticklabels=class_names, yticklabels=class_names,
                     ax=ax1, cbar_kws={'label': 'Count'})
         ax1.set_title(f'{title} - Raw Counts', fontsize=14, fontweight='bold')
         ax1.set_xlabel('Predicted Class', fontsize=12)
@@ -55,7 +55,7 @@ def plot_confusion_matrix(y_true, y_pred, class_names, save_path, title="Confusi
 
         # Plot 2: Normalized
         sns.heatmap(cm_normalized, annot=True, fmt='.2%', cmap='Blues',
-                    xticklabels=class_names, yticklabels=class_names, 
+                    xticklabels=class_names, yticklabels=class_names,
                     ax=ax2, cbar_kws={'label': 'Proportion'}, vmin=0, vmax=1)
         ax2.set_title(f'{title} - Normalized', fontsize=14, fontweight='bold')
         ax2.set_xlabel('Predicted Class', fontsize=12)
@@ -87,9 +87,9 @@ def plot_roc_curves(y_true, y_probs, class_names, save_path, title="ROC Curves")
         if n_classes == 2:
             y_true_bin = np.hstack([1 - y_true_bin, y_true_bin])
 
-        fpr = dict()
-        tpr = dict()
-        roc_auc = dict()
+        fpr = {}
+        tpr = {}
+        roc_auc = {}
 
         for i in range(n_classes):
             fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_probs[:, i])
@@ -278,12 +278,12 @@ def plot_per_class_metrics(y_true, y_pred, class_names, save_path, title="Per-Cl
         ax.grid(True, alpha=0.3, axis='y')
 
         # Add value labels on bars
-        for i, cls in enumerate(class_names):
-            ax.text(i - width, metrics['precision'][i] + 0.02, f"{metrics['precision'][i]:.2f}", 
+        for i, _cls in enumerate(class_names):
+            ax.text(i - width, metrics['precision'][i] + 0.02, f"{metrics['precision'][i]:.2f}",
                    ha='center', va='bottom', fontsize=8)
-            ax.text(i, metrics['recall'][i] + 0.02, f"{metrics['recall'][i]:.2f}", 
+            ax.text(i, metrics['recall'][i] + 0.02, f"{metrics['recall'][i]:.2f}",
                    ha='center', va='bottom', fontsize=8)
-            ax.text(i + width, metrics['f1-score'][i] + 0.02, f"{metrics['f1-score'][i]:.2f}", 
+            ax.text(i + width, metrics['f1-score'][i] + 0.02, f"{metrics['f1-score'][i]:.2f}",
                    ha='center', va='bottom', fontsize=8)
 
         plt.tight_layout()
@@ -298,7 +298,7 @@ def plot_per_class_metrics(y_true, y_pred, class_names, save_path, title="Per-Cl
         return False
 
 
-def generate_all_visualizations(model, backbone_name, history, val_loader, 
+def generate_all_visualizations(model, backbone_name, history, val_loader,
                                 class_names, criterion, device):
     """Generate all visualizations for a trained model"""
     logger.info(f"Generating comprehensive visualizations for {backbone_name}...")
@@ -347,7 +347,7 @@ def generate_all_visualizations(model, backbone_name, history, val_loader,
 
         # 2. Confusion Matrix
         cm_path = PLOTS_DIR / f"{backbone_name}_confusion_matrix.tiff"
-        if plot_confusion_matrix(all_labels, all_preds, class_names, cm_path, 
+        if plot_confusion_matrix(all_labels, all_preds, class_names, cm_path,
                                 f"{backbone_name} Confusion Matrix"):
             plot_paths['confusion_matrix'] = str(cm_path)
 

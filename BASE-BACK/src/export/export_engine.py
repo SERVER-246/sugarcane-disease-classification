@@ -1,12 +1,13 @@
 """Core export engine for multi-format model export"""
 
+from __future__ import annotations
+
 import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -27,8 +28,8 @@ class ExportConfig:
     backbone_name: str
     num_classes: int
     image_size: int = IMG_SIZE
-    export_formats: List[str] = None
-    output_dir: Optional[Path] = None
+    export_formats: list[str] = None
+    output_dir: Path | None = None
     include_metadata: bool = True
     device: str = 'cpu'
 
@@ -59,7 +60,7 @@ class ExportEngine:
 
         self.export_results = {}
 
-    def export(self, model: nn.Module, dummy_input: Optional[torch.Tensor] = None) -> Dict[str, Any]:
+    def export(self, model: nn.Module, dummy_input: torch.Tensor | None = None) -> dict[str, Any]:
         """
         Export model to all configured formats.
 
@@ -142,7 +143,9 @@ class ExportEngine:
     def _export_onnx(self, model: nn.Module, dummy_input: torch.Tensor) -> str:
         """Export ONNX format."""
         try:
-            import onnx
+            import importlib.util
+            if importlib.util.find_spec('onnx') is None:
+                raise ImportError("ONNX package not installed")
             output_path = self.model_dir / 'model.onnx'
 
             torch.onnx.export(
@@ -160,8 +163,8 @@ class ExportEngine:
 
             logger.info(f"    Saved to {output_path}")
             return str(output_path)
-        except ImportError:
-            raise ImportError("ONNX export requires onnx and onnxruntime packages")
+        except ImportError as err:
+            raise ImportError("ONNX export requires onnx and onnxruntime packages") from err
 
     def _export_tflite(self, model: nn.Module, dummy_input: torch.Tensor) -> str:
         """Export TensorFlow Lite format (via ONNX conversion)."""
@@ -227,10 +230,10 @@ def export_model(
     model_name: str,
     output_dir: Path,
     input_shape: tuple = (1, 3, 224, 224),
-    formats: List[str] = None,
-    class_names: List[str] = None,
-    training_metadata: Dict = None
-) -> Dict[str, Any]:
+    formats: list[str] = None,
+    class_names: list[str] = None,
+    training_metadata: dict = None
+) -> dict[str, Any]:
     """
     Comprehensive model export with metadata generation.
 
@@ -295,7 +298,7 @@ def export_model(
                 # Try script first, fallback to trace
                 try:
                     scripted_model = torch.jit.script(model)
-                except:
+                except Exception:
                     scripted_model = torch.jit.trace(model, dummy_input)
                 scripted_model.save(str(torchscript_path))
                 export_results['torchscript'] = str(torchscript_path)
@@ -326,9 +329,9 @@ def _generate_export_metadata(
     output_dir: Path,
     model_name: str,
     input_shape: tuple,
-    class_names: List[str] = None,
-    training_metadata: Dict = None,
-    export_results: Dict = None
+    class_names: list[str] = None,
+    training_metadata: dict = None,
+    export_results: dict = None
 ):
     """Generate comprehensive metadata files for exported models"""
     import json
@@ -349,7 +352,7 @@ def _generate_export_metadata(
         metadata_path = output_dir / 'metadata.json'
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2, default=str)
-        logger.info(f"[OK] Created: metadata.json")
+        logger.info("[OK] Created: metadata.json")
 
         # 2. class_mapping.json - Class names and indices
         if class_names:
@@ -357,7 +360,7 @@ def _generate_export_metadata(
             class_map_path = output_dir / 'class_mapping.json'
             with open(class_map_path, 'w') as f:
                 json.dump(class_mapping, f, indent=2, default=str)
-            logger.info(f"[OK] Created: class_mapping.json")
+            logger.info("[OK] Created: class_mapping.json")
 
         # 3. export_info.json - Export details
         export_info = {
@@ -371,7 +374,7 @@ def _generate_export_metadata(
         export_info_path = output_dir / 'export_info.json'
         with open(export_info_path, 'w') as f:
             json.dump(export_info, f, indent=2, default=str)
-        logger.info(f"[OK] Created: export_info.json")
+        logger.info("[OK] Created: export_info.json")
 
         # 4. README.txt - Usage instructions
         readme_content = f"""
@@ -424,7 +427,7 @@ output = model(input_tensor)
         readme_path = output_dir / 'README.txt'
         with open(readme_path, 'w') as f:
             f.write(readme_content)
-        logger.info(f"[OK] Created: README.txt")
+        logger.info("[OK] Created: README.txt")
 
     except Exception as e:
         logger.error(f"x Failed to generate metadata files: {e}")
@@ -434,9 +437,9 @@ def export_model_legacy(
     model: nn.Module,
     backbone_name: str,
     num_classes: int,
-    export_formats: List[str] = None,
-    output_dir: Optional[Path] = None
-) -> Dict[str, Any]:
+    export_formats: list[str] = None,
+    output_dir: Path | None = None
+) -> dict[str, Any]:
     """
     Export model to multiple formats.
 
@@ -473,7 +476,7 @@ def export_to_format(
     model: nn.Module,
     export_format: str,
     output_path: Path,
-    dummy_input: Optional[torch.Tensor] = None
+    dummy_input: torch.Tensor | None = None
 ) -> bool:
     """
     Export model to a single format.
@@ -498,7 +501,7 @@ def export_to_format(
                 dummy_input = torch.randn(1, 3, 224, 224)
             try:
                 scripted = torch.jit.script(model)
-            except:
+            except Exception:
                 scripted = torch.jit.trace(model, dummy_input)
             scripted.save(str(output_path))
 

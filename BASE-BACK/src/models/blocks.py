@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 # =============================================================================
@@ -29,7 +28,7 @@ def get_activation_fn(name: str) -> nn.Module:
 
 class CoreImageBlock(nn.Module):
     """Base Conv-Norm-Act block supporting LN/BN and diverse activation"""
-    def __init__(self, in_c, out_c, k_size=3, stride=1, padding=1, 
+    def __init__(self, in_c, out_c, k_size=3, stride=1, padding=1,
                  groups=1, use_ln=False, activation='silu', bias=False):
         super().__init__()
 
@@ -57,7 +56,7 @@ class ConvNeXtBlock(nn.Module):
     """ConvNeXt Block"""
     def __init__(self, dim):
         super().__init__()
-        self.dwconv = CoreImageBlock(dim, dim, k_size=7, padding=3, 
+        self.dwconv = CoreImageBlock(dim, dim, k_size=7, padding=3,
                                      groups=dim, use_ln=True, activation='linear')
         self.mlp = nn.Sequential(
             nn.Linear(dim, dim * 4),
@@ -84,7 +83,7 @@ class InvertedResidualBlock(nn.Module):
         if expand_ratio != 1:
             layers.append(CoreImageBlock(in_c, hidden_dim, 1, 1, 0, activation='silu'))
 
-        layers.append(CoreImageBlock(hidden_dim, hidden_dim, 3, stride, 1, 
+        layers.append(CoreImageBlock(hidden_dim, hidden_dim, 3, stride, 1,
                                     groups=hidden_dim, activation='silu'))
         layers.append(CoreImageBlock(hidden_dim, out_c, 1, 1, 0, activation='linear'))
 
@@ -101,10 +100,10 @@ class GhostModule(nn.Module):
         super().__init__()
         init_channels = out_c // ratio
 
-        self.primary_conv = CoreImageBlock(in_c, init_channels, kernel_size, 1, 
+        self.primary_conv = CoreImageBlock(in_c, init_channels, kernel_size, 1,
                                           kernel_size//2, activation='leakyrelu')
         self.cheap_operation = CoreImageBlock(init_channels, init_channels, dw_size, 1,
-                                             dw_size//2, groups=init_channels, 
+                                             dw_size//2, groups=init_channels,
                                              activation='leakyrelu')
 
     def forward(self, x):
@@ -124,7 +123,7 @@ class MishBottleneck(nn.Module):
         self.conv3 = CoreImageBlock(planes, outplanes, 1, 1, 0, activation='linear')
 
         if stride != 1 or inplanes != outplanes:
-            self.downsample = CoreImageBlock(inplanes, outplanes, 1, stride, 0, 
+            self.downsample = CoreImageBlock(inplanes, outplanes, 1, stride, 0,
                                            activation='linear')
         else:
             self.downsample = nn.Identity()

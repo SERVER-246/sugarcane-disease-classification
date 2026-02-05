@@ -5,7 +5,6 @@ Extracted from original Base_backbones.py unit testing functionality.
 
 import sys
 from pathlib import Path
-from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -21,7 +20,6 @@ try:
     from models.architectures import create_custom_backbone
 except ImportError:
     # Fallback for different execution contexts
-    import os
     import sys
     # Try adding src to path if not already there
     src_path = str(Path(__file__).parent.parent)
@@ -185,7 +183,7 @@ def test_device_compatibility() -> bool:
         return False
 
 
-def run_all_unit_tests() -> Tuple[int, int]:
+def run_all_unit_tests() -> tuple[int, int]:
     """
     Run all unit tests and return (passed, failed) counts.
 

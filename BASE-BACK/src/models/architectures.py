@@ -1,6 +1,5 @@
 """Factory for creating all backbone architectures"""
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,12 +9,9 @@ from .blocks import (
     CoreImageBlock,
     CSPBlock,
     DenseBlock,
-    GhostModule,
     InceptionModule,
     InvertedResidualBlock,
     MishBottleneck,
-    MultiHeadSelfAttention,
-    TransformerEncoderBlock,
     TransformerEncoderBlockWithLayerScale,
     get_activation_fn,
 )
@@ -220,7 +216,7 @@ class SwinTransformerBlock(nn.Module):
             mask_windows = window_partition(img_mask, self.window_size)
             mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
             attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-            attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
+            attn_mask = attn_mask.masked_fill(attn_mask != 0, (-100.0)).masked_fill(attn_mask == 0, 0.0)
             self.register_buffer("attn_mask", attn_mask)
         else:
             self.attn_mask = None
@@ -423,7 +419,7 @@ class CustomEfficientNetV4(nn.Module):
         layers = []
         for i in range(num_blocks):
             s = stride if i == 0 else 1
-            layers.append(InvertedResidualBlock(in_c if i == 0 else out_c, 
+            layers.append(InvertedResidualBlock(in_c if i == 0 else out_c,
                                                out_c, s, expand_ratio))
         return nn.Sequential(*layers)
 
@@ -437,8 +433,12 @@ class CustomEfficientNetV4(nn.Module):
 
 class CustomSwinTransformer(nn.Module):
     """Custom Swin Transformer"""
-    def __init__(self, num_classes=1000, img_size=224, patch_size=4, embed_dim=128, 
-                 depths=[2, 2, 18, 2], num_heads=[4, 8, 16, 32], window_size=7):
+    def __init__(self, num_classes=1000, img_size=224, patch_size=4, embed_dim=128,
+                 depths=None, num_heads=None, window_size=7):
+        if num_heads is None:
+            num_heads = [4, 8, 16, 32]
+        if depths is None:
+            depths = [2, 2, 18, 2]
         super().__init__()
         self.num_classes = num_classes
         self.num_layers = len(depths)
@@ -453,7 +453,7 @@ class CustomSwinTransformer(nn.Module):
             nn.Conv2d(embed_dim // 2, embed_dim, 3, 2, 1, bias=False),
             nn.BatchNorm2d(embed_dim),
         )
-        actual_resolution = img_size // 4 
+        img_size // 4
         self.patches_resolution = [img_size // patch_size, img_size // patch_size]
 
         num_patches = self.patches_resolution[0] * self.patches_resolution[1]
@@ -624,8 +624,8 @@ class CustomMobileOne(nn.Module):
         for i in range(num_blocks):
             s = stride if i == 0 else 1
             layers.append(MobileOneBlock(
-                in_c if i == 0 else out_c, 
-                out_c, 3, s, 1, 
+                in_c if i == 0 else out_c,
+                out_c, 3, s, 1,
                 num_conv_branches=2
             ))
         return nn.Sequential(*layers)
@@ -651,10 +651,10 @@ class GhostModuleV2Enhanced(nn.Module):
         super().__init__()
         init_channels = out_c // ratio
 
-        self.primary_conv = CoreImageBlock(in_c, init_channels, kernel_size, 1, 
+        self.primary_conv = CoreImageBlock(in_c, init_channels, kernel_size, 1,
                                           kernel_size//2, activation='leakyrelu')
         self.cheap_operation = CoreImageBlock(init_channels, init_channels, dw_size, 1,
-                                             dw_size//2, groups=init_channels, 
+                                             dw_size//2, groups=init_channels,
                                              activation='leakyrelu')
 
         # SE attention for better feature recalibration
@@ -693,7 +693,7 @@ class GhostBottleneckV2(nn.Module):
         # Depthwise
         if stride > 1:
             self.dw = nn.Sequential(
-                CoreImageBlock(hidden_c, hidden_c, 3, stride, 1, 
+                CoreImageBlock(hidden_c, hidden_c, 3, stride, 1,
                              groups=hidden_c, activation='leakyrelu'),
                 CoreImageBlock(hidden_c, hidden_c, 3, 1, 1,
                              groups=hidden_c, activation='leakyrelu')  # Extra DW
@@ -708,7 +708,7 @@ class GhostBottleneckV2(nn.Module):
         # Shortcut
         if not self.use_residual:
             self.shortcut = nn.Sequential(
-                CoreImageBlock(in_c, in_c, 3, stride, 1, 
+                CoreImageBlock(in_c, in_c, 3, stride, 1,
                              groups=in_c, activation='linear'),
                 CoreImageBlock(in_c, out_c, 1, 1, 0, activation='linear')
             )
@@ -817,7 +817,9 @@ class CustomGhostNetV2(nn.Module):
 
 class CustomResNetMish(nn.Module):
     """Custom ResNet with Mish"""
-    def __init__(self, num_classes=1000, layers=[3, 4, 6, 3]):
+    def __init__(self, num_classes=1000, layers=None):
+        if layers is None:
+            layers = [3, 4, 6, 3]
         super().__init__()
 
         self.inplanes = 64
@@ -947,8 +949,8 @@ class CustomViTHybrid(nn.Module):
         # DEEP TRANSFORMER: 18 blocks (ViT-Large depth)
         self.transformer_blocks = nn.ModuleList([
             TransformerEncoderBlockWithLayerScale(
-                self.embed_dim, 
-                num_heads=12, 
+                self.embed_dim,
+                num_heads=12,
                 mlp_ratio=4.0,
                 init_values=1e-5  # Smaller init for deeper models
             )
@@ -1093,8 +1095,8 @@ class CustomCoAtNet(nn.Module):
         # This balances representational power with training stability
         self.stage3_transformer = nn.ModuleList([
             TransformerEncoderBlockWithLayerScale(
-                768, 
-                num_heads=12, 
+                768,
+                num_heads=12,
                 mlp_ratio=4.0,
                 init_values=0.1  # Strong initial values for stable training
             )
@@ -1355,8 +1357,8 @@ class CustomMaxViT(nn.Module):
         # ENHANCED: 3 strong attention blocks (was 2)
         self.stage2_attn = nn.ModuleList([
             TransformerEncoderBlockWithLayerScale(
-                512, 
-                num_heads=16, 
+                512,
+                num_heads=16,
                 mlp_ratio=4.0,
                 init_values=0.1
             )
@@ -1370,8 +1372,8 @@ class CustomMaxViT(nn.Module):
         # OPTIMIZED: 10 transformer blocks (was 8, but with better initialization)
         self.stage3_transformer = nn.ModuleList([
             TransformerEncoderBlockWithLayerScale(
-                768, 
-                num_heads=12, 
+                768,
+                num_heads=12,
                 mlp_ratio=4.0,
                 init_values=0.1  # Strong initialization
             )

@@ -181,7 +181,6 @@ class SmokeCheckLogger:
 
     def save_summary(self):
         """Save smoke check summary"""
-        import json
         summary_file = DEBUG_LOG_DIR / 'smoke_check_summary.json'
         summary = {
             'total_checks': len(self.checks),

@@ -1,7 +1,7 @@
 """Smoke tests for exported models - verify correctness after export"""
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -30,7 +30,7 @@ class SmokeTestValidator:
         self.image_size = image_size
         self.dummy_input = torch.randn(1, 3, image_size, image_size)
 
-    def test_state_dict(self, model: nn.Module, checkpoint_path: Path) -> Dict[str, Any]:
+    def test_state_dict(self, model: nn.Module, checkpoint_path: Path) -> dict[str, Any]:
         """Test state_dict export and loading."""
         try:
             # Load state dict
@@ -50,7 +50,7 @@ class SmokeTestValidator:
         except Exception as e:
             return {'status': 'fail', 'error': str(e)}
 
-    def test_torchscript(self, model_path: Path) -> Dict[str, Any]:
+    def test_torchscript(self, model_path: Path) -> dict[str, Any]:
         """Test TorchScript export and inference."""
         try:
             # Load and test TorchScript model
@@ -70,7 +70,7 @@ class SmokeTestValidator:
         except Exception as e:
             return {'status': 'fail', 'error': str(e)}
 
-    def test_onnx(self, model_path: Path) -> Dict[str, Any]:
+    def test_onnx(self, model_path: Path) -> dict[str, Any]:
         """Test ONNX export and inference."""
         try:
             import onnx
@@ -99,7 +99,7 @@ class SmokeTestValidator:
         except Exception as e:
             return {'status': 'fail', 'error': str(e)}
 
-    def test_tflite(self, model_path: Path) -> Dict[str, Any]:
+    def test_tflite(self, model_path: Path) -> dict[str, Any]:
         """Test TFLite export and inference."""
         try:
             import tensorflow as tf
@@ -132,11 +132,11 @@ class SmokeTestValidator:
 
 def run_export_smoke_tests(
     model: nn.Module,
-    export_results: Dict[str, Any],
+    export_results: dict[str, Any],
     model_dir: Path,
     num_classes: int = 13,
     image_size: int = 224
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """
     Run smoke tests on all exported formats.
 
@@ -155,7 +155,7 @@ def run_export_smoke_tests(
 
     logger.info("Running export smoke tests...")
 
-    for export_format in export_results.keys():
+    for export_format in export_results:
         logger.info(f"  Testing {export_format}...")
 
         try:

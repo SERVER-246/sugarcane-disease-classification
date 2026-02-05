@@ -4,20 +4,18 @@ Handles saving/resuming training progress when system shuts down
 """
 
 import json
-import os
-import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import torch
 
 
 # Handle both package imports and direct sys.path imports
 try:
-    from ..config.settings import BACKBONES, CKPT_DIR, KFOLD_DIR
+    from ..config.settings import BACKBONES, CKPT_DIR
 except ImportError:
-    from config.settings import BACKBONES, CKPT_DIR, KFOLD_DIR
+    from config.settings import BACKBONES, CKPT_DIR
 
 
 class CheckpointManager:
@@ -28,7 +26,7 @@ class CheckpointManager:
     if system unexpectedly shuts down.
     """
 
-    def __init__(self, checkpoint_dir: Optional[Path] = None):
+    def __init__(self, checkpoint_dir: Path | None = None):
         """
         Initialize checkpoint manager.
 
@@ -45,12 +43,12 @@ class CheckpointManager:
     def save_backbone_checkpoint(
         self,
         backbone_name: str,
-        model_state_dict: Dict[str, Any],
+        model_state_dict: dict[str, Any],
         epoch: int,
-        metrics: Dict[str, float],
-        history: Dict[str, List[float]],
-        optimizer_state: Optional[Dict] = None,
-        scheduler_state: Optional[Dict] = None,
+        metrics: dict[str, float],
+        history: dict[str, list[float]],
+        optimizer_state: dict | None = None,
+        scheduler_state: dict | None = None,
         stage: str = 'head'  # 'head' or 'finetune'
     ) -> str:
         """
@@ -88,7 +86,7 @@ class CheckpointManager:
 
         return str(checkpoint_path)
 
-    def save_pipeline_state(self, state: Dict[str, Any]) -> None:
+    def save_pipeline_state(self, state: dict[str, Any]) -> None:
         """
         Save overall pipeline state for recovery.
 
@@ -105,7 +103,7 @@ class CheckpointManager:
         with open(self.recovery_file, 'w') as f:
             json.dump(state, f, indent=2)
 
-    def load_pipeline_state(self) -> Optional[Dict[str, Any]]:
+    def load_pipeline_state(self) -> dict[str, Any] | None:
         """
         Load pipeline state from last checkpoint.
 
@@ -116,12 +114,12 @@ class CheckpointManager:
             return None
 
         try:
-            with open(self.recovery_file, 'r') as f:
+            with open(self.recovery_file) as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return None
 
-    def save_kfold_progress(self, backbone_name: str, fold_results: Dict[str, Any]) -> None:
+    def save_kfold_progress(self, backbone_name: str, fold_results: dict[str, Any]) -> None:
         """
         Save K-fold cross-validation progress.
 
@@ -139,7 +137,7 @@ class CheckpointManager:
         with open(kfold_file, 'w') as f:
             json.dump(progress, f, indent=2)
 
-    def load_kfold_progress(self, backbone_name: str) -> Optional[Dict[str, Any]]:
+    def load_kfold_progress(self, backbone_name: str) -> dict[str, Any] | None:
         """
         Load K-fold progress for a specific backbone.
 
@@ -154,12 +152,12 @@ class CheckpointManager:
             return None
 
         try:
-            with open(kfold_file, 'r') as f:
+            with open(kfold_file) as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return None
 
-    def get_latest_backbone_checkpoint(self, backbone_name: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    def get_latest_backbone_checkpoint(self, backbone_name: str) -> tuple[str, dict[str, Any]] | None:
         """
         Get the most recent checkpoint for a backbone.
 
@@ -184,7 +182,7 @@ class CheckpointManager:
             print(f"Error loading checkpoint {latest}: {e}")
             return None
 
-    def get_completed_backbones(self) -> List[str]:
+    def get_completed_backbones(self) -> list[str]:
         """
         Get list of backbones that have completed training.
 
@@ -196,7 +194,7 @@ class CheckpointManager:
             return state['completed_backbones']
         return []
 
-    def get_next_backbone_to_train(self) -> Optional[str]:
+    def get_next_backbone_to_train(self) -> str | None:
         """
         Get the next backbone that needs training.
 
@@ -211,7 +209,7 @@ class CheckpointManager:
 
         return None
 
-    def mark_backbone_complete(self, backbone_name: str, results: Dict[str, Any]) -> None:
+    def mark_backbone_complete(self, backbone_name: str, results: dict[str, Any]) -> None:
         """
         Mark a backbone as completed.
 
@@ -249,7 +247,7 @@ class CheckpointManager:
             except Exception as e:
                 print(f"Error removing {checkpoint}: {e}")
 
-    def get_recovery_status(self) -> Dict[str, Any]:
+    def get_recovery_status(self) -> dict[str, Any]:
         """
         Get current recovery status.
 
@@ -280,7 +278,7 @@ class CheckpointManager:
         except Exception as e:
             print(f"Error resetting recovery: {e}")
 
-    def export_recovery_summary(self, output_file: Optional[Path] = None) -> str:
+    def export_recovery_summary(self, output_file: Path | None = None) -> str:
         """
         Export recovery status to a human-readable file.
 
@@ -327,6 +325,6 @@ COMPLETED BACKBONES ({len(completed)}):
 
 
 # Convenience function for quick access
-def get_checkpoint_manager(checkpoint_dir: Optional[Path] = None) -> CheckpointManager:
+def get_checkpoint_manager(checkpoint_dir: Path | None = None) -> CheckpointManager:
     """Get a checkpoint manager instance."""
     return CheckpointManager(checkpoint_dir)

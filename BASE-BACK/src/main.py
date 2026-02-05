@@ -3,7 +3,6 @@ Main entry point for Disease Classification Framework
 Phase-1: Modular architecture with streamlined training pipeline
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -27,9 +26,6 @@ from config.settings import (
     BACKBONES,
     BATCH_SIZE,
     CKPT_DIR,
-    DEBUG_BACKBONE,
-    DEBUG_FUNCTION,
-    DEBUG_MODE,
     DEPLOY_DIR,
     ENABLE_EXPORT,
     ENABLE_KFOLD_CV,
@@ -48,7 +44,6 @@ from config.settings import (
     SPLIT_DIR,
 )
 from sklearn.model_selection import StratifiedKFold
-from tqdm.auto import tqdm
 
 
 DEBUG_HEAD_EPOCHS = getattr(settings, 'DEBUG_EPOCHS_HEAD', EPOCHS_HEAD)
@@ -57,10 +52,10 @@ DEBUG_BATCH_SIZE = getattr(settings, 'DEBUG_BATCH_SIZE', BATCH_SIZE)
 
 # Utils
 # Models
-from models import BACKBONE_MAP, create_custom_backbone_safe
+from models import create_custom_backbone_safe  # noqa: E402
 
 # Training
-from training import (
+from training import (  # noqa: E402
     create_improved_scheduler,
     create_optimized_optimizer,
     get_loss_function_for_backbone,
@@ -68,9 +63,9 @@ from training import (
     train_epoch_optimized,
     validate_epoch_optimized,
 )
-from utils import DEVICE, compute_file_sha256, get_device_info, logger, set_seed, smoke_checker
-from utils.checkpoint_manager import CheckpointManager
-from utils.datasets import (
+from utils import DEVICE, get_device_info, logger, set_seed  # noqa: E402
+from utils.checkpoint_manager import CheckpointManager  # noqa: E402
+from utils.datasets import (  # noqa: E402
     OptimizedTempDataset,
     WindowsCompatibleImageFolder,
     create_optimized_dataloader,
@@ -85,7 +80,7 @@ from utils.datasets import (
 # CORE TRAINING ORCHESTRATOR
 # =============================================================================
 
-def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds, 
+def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds,
                                 epochs_head=EPOCHS_HEAD, epochs_finetune=EPOCHS_FINETUNE):
     """
     Complete training pipeline for a backbone with detailed logging
@@ -146,7 +141,7 @@ def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds,
         if np.isnan(train_loss) or np.isinf(train_loss) or np.isnan(val_loss) or np.isinf(val_loss):
             logger.error(f"NaN/Inf detected in epoch {epoch+1} metrics. Stopping training.")
             logger.error(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-            logger.error(f"This usually indicates gradient explosion. Model will use best checkpoint.")
+            logger.error("This usually indicates gradient explosion. Model will use best checkpoint.")
             break
 
         history['head'].append((train_loss, val_loss, val_acc, train_acc, val_f1))
@@ -208,7 +203,7 @@ def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds,
         if np.isnan(train_loss) or np.isinf(train_loss) or np.isnan(val_loss) or np.isinf(val_loss):
             logger.error(f"NaN/Inf detected in epoch {epoch+1} metrics. Stopping fine-tuning.")
             logger.error(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-            logger.error(f"Model will use best checkpoint from before NaN occurred.")
+            logger.error("Model will use best checkpoint from before NaN occurred.")
             break
 
         history['finetune'].append((train_loss, val_loss, val_acc, train_acc, val_f1))
@@ -464,12 +459,12 @@ def run_full_pipeline():
     """
     Complete training pipeline matching original Base_backbones.py workflow:
     - Stage 0: Unit tests + Dataset preparation + Model verification
-    - Stage 1: K-fold Cross Validation (if enabled)  
+    - Stage 1: K-fold Cross Validation (if enabled)
     - Stage 2: Final model training
     - Stage 3: Test set evaluation
     - Stage 4: Model export (if enabled)
     """
-    pipeline_start_time = time.time()
+    time.time()
     logger.log_system_info_once()
     logger.info(f"Device info: {json.dumps(get_device_info(), indent=2, default=str)}")
 
@@ -493,7 +488,7 @@ def run_full_pipeline():
         logger.info(f"Remaining: {recovery_status['remaining']}")
 
     timestamp = time.strftime('%Y%m%d_%H%M%S')
-    run_log_file = Path.cwd() / f'pipeline_run_{timestamp}.log'
+    Path.cwd() / f'pipeline_run_{timestamp}.log'
 
     set_seed(SEED)
 
@@ -544,7 +539,7 @@ def run_full_pipeline():
             logger.error(f"[FAIL] {backbone_name}: {e}")
             verification_results[backbone_name] = {'status': 'failed', 'error': str(e)}
 
-    verified_backbones = [name for name, result in verification_results.items() 
+    verified_backbones = [name for name, result in verification_results.items()
                          if result['status'] == 'verified']
     logger.info(f"\nVerified {len(verified_backbones)}/{len(BACKBONES)} models")
 
@@ -563,7 +558,7 @@ def run_full_pipeline():
         try:
             from torchvision import transforms as T
             full_dataset = WindowsCompatibleImageFolder(
-                str(raw_dir), 
+                str(raw_dir),
                 transform=T.ToTensor()
             )
             logger.info(f"Loaded full dataset: {len(full_dataset)} samples for K-fold CV")
@@ -608,8 +603,8 @@ def run_full_pipeline():
                 )
                 logger.info(f"K-fold CV Results: {mean_acc:.4f} ± {std_acc:.4f}")
             else:
-                logger.info(f"\nStage 2.1: K-fold Cross Validation SKIPPED")
-                mean_acc, std_acc, kfold_summary = 0.0, 0.0, {'skipped': True}
+                logger.info("\nStage 2.1: K-fold Cross Validation SKIPPED")
+                mean_acc, std_acc, _kfold_summary = 0.0, 0.0, {'skipped': True}
 
             # STAGE 2.2: Train final model
             logger.info(f"\nStage 2.2: Training final {backbone_name} model")
@@ -638,7 +633,7 @@ def run_full_pipeline():
                     final_model, test_loader, nn.CrossEntropyLoss(), device=DEVICE
                 )
 
-                logger.info(f"Test Results:")
+                logger.info("Test Results:")
                 logger.info(f"  Accuracy:  {test_acc:.4f}")
                 logger.info(f"  Precision: {test_prec:.4f}")
                 logger.info(f"  Recall:    {test_rec:.4f}")
@@ -704,7 +699,7 @@ def run_full_pipeline():
                     logger.warning(f"Export failed for {backbone_name}: {e}")
                     metrics['export_error'] = str(e)
             else:
-                logger.info(f"\nStage 2.4: Model Export SKIPPED (disabled)")
+                logger.info("\nStage 2.4: Model Export SKIPPED (disabled)")
 
             # Calculate model training time
             model_time = time.time() - model_start_time
@@ -758,12 +753,12 @@ def run_full_pipeline():
 
     successful = sum(1 for r in results.values() if r.get('status') == 'success')
     failed = len(verified_backbones) - successful
-    logger.info(f"\nTraining Results:")
+    logger.info("\nTraining Results:")
     logger.info(f"  [OK] Successfully trained: {successful}/{len(verified_backbones)} models")
     logger.info(f"  x Failed: {failed} models")
 
     # Per-backbone summary
-    logger.info(f"\nPer-Backbone Results:")
+    logger.info("\nPer-Backbone Results:")
     for backbone_name, result in results.items():
         if result.get('status') == 'success':
             acc = result.get('final_accuracy', 0.0)
@@ -776,7 +771,7 @@ def run_full_pipeline():
 
     # Export recovery status
     final_status = checkpoint_mgr.get_recovery_status()
-    logger.info(f"\nCheckpoint Recovery Status:")
+    logger.info("\nCheckpoint Recovery Status:")
     logger.info(f"  Completed: {final_status['completed']} / {final_status['total_backbones']}")
     logger.info(f"  Remaining: {final_status['remaining']}")
 
@@ -799,7 +794,7 @@ def run_full_pipeline():
             }
         }, f, indent=2, default=str)
 
-    logger.info(f"\n" + "="*80)
+    logger.info("\n" + "="*80)
     logger.info(f"[DONE] Pipeline completed! Results saved to: {summary_file}")
     logger.info(f"[DONE] Recovery status saved to: {checkpoint_mgr.checkpoint_dir / 'recovery_status.txt'}")
     logger.info("="*80)
