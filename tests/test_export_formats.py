@@ -238,21 +238,23 @@ class TestExportIntegrity:
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir) / "model.onnx"
 
+            # Use opset_version=18 - PyTorch's dynamo-based ONNX exporter requires
+            # opset 18+ and version conversion to lower opsets fails in CI
             torch.onnx.export(
                 model,
                 (example_input,),
                 str(save_path),
                 input_names=["input"],
                 output_names=["output"],
-                opset_version=17,
+                opset_version=18,
             )
 
             file_size_mb = save_path.stat().st_size / (1024 * 1024)
 
-            # ONNX file should have real weights (>0.5MB for small models)
-            # and less than 500MB (reasonable model size)
-            assert 0.5 < file_size_mb < 500, \
-                f"ONNX file size {file_size_mb:.1f}MB seems unreasonable"
+            # CustomConvNeXt has ~27.8M params (~106MB). ONNX file should be
+            # at least 50MB (real weights) and less than 500MB (reasonable size)
+            assert 50 < file_size_mb < 500, \
+                f"ONNX file size {file_size_mb:.1f}MB seems unreasonable (expected ~106MB)"
 
     def test_torchscript_file_size_reasonable(self, num_classes, img_size, device):
         """Test that TorchScript file size is reasonable."""
