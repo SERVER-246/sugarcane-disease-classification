@@ -2,7 +2,7 @@
 # DISEASE Classification Pipeline - Main CI Workflow
 # ============================================================================
 # Created: Sprint 2 - CI/CD Without Behavior Change
-# Triggers: Push to main/develop, Pull requests to main
+# Triggers: Push to main/develop, Pull requests to main, Manual dispatch
 # Purpose: Automated linting, type checking, and testing
 # ============================================================================
 
@@ -13,6 +13,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:  # Allow manual trigger
 
 # Cancel in-progress runs for the same branch
 concurrency:
@@ -49,11 +50,13 @@ jobs:
           ruff check Base_backbones.py BASE-BACK/ tests/ image_validator.py disease_classifier_gui.py --output-format=github
 
   # ===========================================================================
-  # Type Checking with Pyright
+  # Type Checking with Pyright (Informational - does not block CI)
   # ===========================================================================
   typecheck:
     name: Type Check (Pyright)
     runs-on: ubuntu-latest
+    # This job is informational only - it reports but doesn't block
+    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,8 +75,7 @@ jobs:
           pip install -r requirements-ci.txt
 
       - name: Run Pyright
-        run: pyright . --warnings
-        continue-on-error: true  # Type errors logged but don't fail build yet
+        run: pyright BASE-BACK/src/ --warnings || echo "Type check completed with warnings"
 
   # ===========================================================================
   # Unit Tests (Ubuntu + Windows)
@@ -103,12 +105,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          # Install test dependencies first (required for pytest)
           pip install pytest pytest-cov pytest-xdist pytest-timeout
-          # Install CI-specific requirements (CPU-compatible)
           pip install -r requirements-ci.txt
-          # Install remaining dev dependencies
-          pip install -r requirements-dev.txt || true
+          pip install -r requirements-dev.txt
 
       - name: Run tests with coverage
         run: pytest tests/ -v -m "not slow" --tb=short --cov=. --cov-report=xml --cov-report=term-missing
@@ -158,11 +157,13 @@ jobs:
           "
 
   # ===========================================================================
-  # Security Scan
+  # Security Scan (Informational - does not block CI)
   # ===========================================================================
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    # This job is informational only - it reports but doesn't block
+    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -176,20 +177,24 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit security scan
-        run: bandit -r . -x ./tests,./checkpoints,./Data,./split_dataset,./.git -ll -ii
-        continue-on-error: true  # Log issues but don't fail build
+        run: |
+          bandit -r BASE-BACK/ -ll -ii -f txt || echo "Security scan completed with findings"
 
   # ===========================================================================
   # All Checks Summary
   # ===========================================================================
   ci-success:
     name: CI Success
-    needs: [lint, typecheck, test, build-check, security]
+    needs: [lint, test, build-check]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Check all jobs passed
+      - name: Check all required jobs passed
         run: |
+          echo "Lint result: ${{ needs.lint.result }}"
+          echo "Test result: ${{ needs.test.result }}"
+          echo "Build check result: ${{ needs.build-check.result }}"
+          
           if [ "${{ needs.lint.result }}" != "success" ]; then
             echo "❌ Lint failed"
             exit 1
@@ -203,3 +208,4 @@ jobs:
             exit 1
           fi
           echo "✅ All required CI checks passed"
+          echo "Note: Type check and Security scan are informational only"

@@ -106,6 +106,8 @@ regenerate_viz_from_training.py
 # Output files
 *.txt
 !requirements.txt
+!requirements-ci.txt
+!requirements-dev.txt
 !README.txt
 pipeline_output.txt
 run_output.txt
