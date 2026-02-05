@@ -238,15 +238,17 @@ class TestExportIntegrity:
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir) / "model.onnx"
 
-            # Use opset_version=18 - PyTorch's dynamo-based ONNX exporter requires
-            # opset 18+ and version conversion to lower opsets fails in CI
+            # Use dynamo=False to use legacy TorchScript-based ONNX exporter
+            # The new dynamo exporter creates external weight files, resulting
+            # in tiny .onnx files. Legacy exporter embeds weights directly.
             torch.onnx.export(
                 model,
                 (example_input,),
                 str(save_path),
                 input_names=["input"],
                 output_names=["output"],
-                opset_version=18,
+                opset_version=14,
+                dynamo=False,
             )
 
             file_size_mb = save_path.stat().st_size / (1024 * 1024)
