@@ -2,6 +2,7 @@
 Checkpoint Manager - Recovery System for Interrupted Training
 Handles saving/resuming training progress when system shuts down
 """
+from __future__ import annotations
 
 import json
 from datetime import datetime
@@ -174,8 +175,8 @@ class CheckpointManager:
         if not checkpoints:
             return None
 
+        latest = checkpoints[0]
         try:
-            latest = checkpoints[0]
             data = torch.load(latest, map_location='cpu')
             return (str(latest), data)
         except Exception as e:
