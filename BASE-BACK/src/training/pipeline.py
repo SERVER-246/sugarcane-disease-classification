@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import f1_score, precision_score, recall_score
-from torch import amp
 from tqdm.auto import tqdm
 
 
@@ -26,25 +25,43 @@ except ImportError:
 # =============================================================================
 
 def _unwrap_logits(outputs):
-    """Handle inception aux_logits and various output formats"""
+    """Handle inception aux_logits and various output formats.
+
+    Models can return:
+    - Tensor directly (most common)
+    - Object with .logits attribute (transformers, InceptionOutputs)
+    - Tuple/list of tensors (auxiliary outputs)
+    - Dict with 'logits' key
+    """
+    # Case 1: Direct Tensor output
     if isinstance(outputs, torch.Tensor):
         return outputs, None
+
+    # Case 2: Object with logits attribute (InceptionOutputs, transformer outputs)
     if hasattr(outputs, 'logits'):
-        return outputs.logits, getattr(outputs, 'aux_logits', None)
+        main_logits = outputs.logits  # noqa: B009
+        aux = outputs.aux_logits if hasattr(outputs, 'aux_logits') else None  # noqa: B009
+        return main_logits, aux
+
+    # Case 3: Tuple/list of tensors (first tensor is main, second is aux)
     if isinstance(outputs, (tuple, list)):
         main = None
         aux = None
         for o in outputs:
             if isinstance(o, torch.Tensor) and main is None:
                 main = o
-            if hasattr(o, 'logits') and main is None:
-                main = o.logits
-            if isinstance(o, torch.Tensor) and main is not None and aux is None:
+            elif hasattr(o, 'logits') and main is None:
+                main = o.logits  # noqa: B009
+            elif isinstance(o, torch.Tensor) and main is not None and aux is None:
                 aux = o
         if main is not None:
             return main, aux
+
+    # Case 4: Dict with 'logits' key
     if isinstance(outputs, dict) and 'logits' in outputs:
         return outputs['logits'], outputs.get('aux_logits', None)
+
+    # Fallback: assume outputs is usable as-is
     return outputs, None
 
 def get_loss_function_for_backbone(backbone_name, num_classes):
@@ -158,7 +175,7 @@ def train_epoch_optimized(model, loader, optimizer, criterion, device=None):
     all_probs = []
 
     current_lr = optimizer.param_groups[0]['lr']
-    scaler = amp.GradScaler() if device.type == 'cuda' else None
+    scaler = torch.cuda.amp.GradScaler() if device.type == 'cuda' else None
 
     pbar = tqdm(loader, desc=f"Train (LR: {current_lr:.2e})", leave=False)
 
@@ -175,9 +192,12 @@ def train_epoch_optimized(model, loader, optimizer, criterion, device=None):
         optimizer.zero_grad()
 
         if scaler is not None:
-            with amp.autocast(device_type='cuda'):
+            with torch.autocast('cuda'):
                 outputs = model(images)
                 logits, aux_logits = _unwrap_logits(outputs)
+                # Ensure logits is a Tensor (required for criterion and argmax)
+                if not isinstance(logits, torch.Tensor):
+                    raise TypeError(f"Expected logits to be Tensor, got {type(logits)}")
                 loss_main = criterion(logits, targets)
                 loss = loss_main
 
@@ -193,6 +213,9 @@ def train_epoch_optimized(model, loader, optimizer, criterion, device=None):
         else:
             outputs = model(images)
             logits, aux_logits = _unwrap_logits(outputs)
+            # Ensure logits is a Tensor (required for criterion and argmax)
+            if not isinstance(logits, torch.Tensor):
+                raise TypeError(f"Expected logits to be Tensor, got {type(logits)}")
             loss_main = criterion(logits, targets)
             loss = loss_main
 
@@ -246,13 +269,19 @@ def validate_epoch_optimized(model, loader, criterion, device=None):
             targets = targets.to(device, non_blocking=True)
 
             if device.type == 'cuda':
-                with amp.autocast(device_type='cuda'):
+                with torch.autocast('cuda'):
                     outputs = model(images)
                     logits, _ = _unwrap_logits(outputs)
+                    # Ensure logits is a Tensor (required for criterion and argmax)
+                    if not isinstance(logits, torch.Tensor):
+                        raise TypeError(f"Expected logits to be Tensor, got {type(logits)}")
                     loss = criterion(logits, targets)
             else:
                 outputs = model(images)
                 logits, _ = _unwrap_logits(outputs)
+                # Ensure logits is a Tensor (required for criterion and argmax)
+                if not isinstance(logits, torch.Tensor):
+                    raise TypeError(f"Expected logits to be Tensor, got {type(logits)}")
                 loss = criterion(logits, targets)
 
             running_loss += loss.item() * images.size(0)

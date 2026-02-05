@@ -127,11 +127,11 @@ def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds,
     for epoch in range(epochs_head):
         current_lr = optimizer.param_groups[0]['lr']
 
-        train_loss, train_acc, train_prec, train_rec, train_f1, _, _, _ = train_epoch_optimized(
+        train_loss, train_acc, train_prec, _train_rec, train_f1, _, _, _ = train_epoch_optimized(
             model, train_loader, optimizer, criterion
         )
 
-        val_loss, val_acc, val_prec, val_rec, val_f1, _, _, _ = validate_epoch_optimized(
+        val_loss, val_acc, val_prec, _val_rec, val_f1, _, _, _ = validate_epoch_optimized(
             model, val_loader, criterion
         )
 
@@ -189,11 +189,11 @@ def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds,
     for epoch in range(epochs_finetune):
         current_lr = optimizer.param_groups[0]['lr']
 
-        train_loss, train_acc, train_prec, train_rec, train_f1, _, _, _ = train_epoch_optimized(
+        train_loss, train_acc, train_prec, _train_rec, train_f1, _, _, _ = train_epoch_optimized(
             model, train_loader, optimizer, criterion
         )
 
-        val_loss, val_acc, val_prec, val_rec, val_f1, _, _, _ = validate_epoch_optimized(
+        val_loss, val_acc, val_prec, _val_rec, val_f1, _, _, _ = validate_epoch_optimized(
             model, val_loader, criterion
         )
 
@@ -240,7 +240,7 @@ def train_backbone_with_metrics(backbone_name, model, train_ds, val_ds,
     logger.info(f"Stage 3: Final evaluation for {backbone_name}")
 
     model.eval()
-    final_val_loss, final_val_acc, final_val_prec, final_val_rec, final_val_f1, val_preds, val_labels, val_probs = validate_epoch_optimized(
+    final_val_loss, final_val_acc, final_val_prec, final_val_rec, final_val_f1, _val_preds, _val_labels, _val_probs = validate_epoch_optimized(
         model, val_loader, criterion
     )
 
@@ -309,10 +309,14 @@ def k_fold_cross_validation(backbone_name, full_dataset, k_folds=K_FOLDS):
         samples = [(full_dataset[i][0], full_dataset[i][1]) for i in range(len(full_dataset))]
         labels = [s[1] for s in samples]
 
+    # Convert to numpy arrays for sklearn compatibility
+    samples_array = np.arange(len(samples))  # Use indices for splitting
+    labels_array = np.array(labels)
+
     skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=SEED)
     fold_results = []
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(samples, labels)):
+    for fold, (train_idx, val_idx) in enumerate(skf.split(samples_array, labels_array)):
         logger.info(f"\n{'='*60}")
         logger.info(f"Training {backbone_name} - Fold {fold + 1}/{k_folds}")
         logger.info(f"{'='*60}")
@@ -348,9 +352,10 @@ def k_fold_cross_validation(backbone_name, full_dataset, k_folds=K_FOLDS):
             # Stage 1: Head training (frozen backbone)
             logger.info(f"Fold {fold+1} - Stage 1: Head training")
 
-            # Freeze backbone parameters
-            if hasattr(model, 'backbone'):
-                for param in model.backbone.parameters():
+            # Freeze backbone parameters if the model has a backbone attribute
+            backbone = getattr(model, 'backbone', None)
+            if backbone is not None and hasattr(backbone, 'parameters'):
+                for param in backbone.parameters():
                     param.requires_grad = False
 
             optimizer = create_optimized_optimizer(model, lr=HEAD_LR, backbone_name=backbone_name)
@@ -358,10 +363,10 @@ def k_fold_cross_validation(backbone_name, full_dataset, k_folds=K_FOLDS):
             for epoch in range(head_epochs):
                 current_lr = optimizer.param_groups[0]['lr']
 
-                train_loss, train_acc, train_prec, train_rec, train_f1, _, _, _ = train_epoch_optimized(
+                train_loss, train_acc, _train_prec, _train_rec, train_f1, _, _, _ = train_epoch_optimized(
                     model, train_loader, optimizer, criterion
                 )
-                val_loss, val_acc, val_prec, val_rec, val_f1, _, _, _ = validate_epoch_optimized(
+                val_loss, val_acc, _val_prec, _val_rec, val_f1, _, _, _ = validate_epoch_optimized(
                     model, val_loader, criterion
                 )
 
@@ -393,10 +398,10 @@ def k_fold_cross_validation(backbone_name, full_dataset, k_folds=K_FOLDS):
             for epoch in range(finetune_epochs):
                 current_lr = optimizer.param_groups[0]['lr']
 
-                train_loss, train_acc, train_prec, train_rec, train_f1, _, _, _ = train_epoch_optimized(
+                train_loss, train_acc, _train_prec, _train_rec, train_f1, _, _, _ = train_epoch_optimized(
                     model, train_loader, optimizer, criterion
                 )
-                val_loss, val_acc, val_prec, val_rec, val_f1, _, _, _ = validate_epoch_optimized(
+                val_loss, val_acc, _val_prec, _val_rec, val_f1, _, _, _ = validate_epoch_optimized(
                     model, val_loader, criterion
                 )
 
@@ -464,7 +469,7 @@ def run_full_pipeline():
     - Stage 3: Test set evaluation
     - Stage 4: Model export (if enabled)
     """
-    time.time()
+    _start_time = time.time()
     logger.log_system_info_once()
     logger.info(f"Device info: {json.dumps(get_device_info(), indent=2, default=str)}")
 
@@ -488,7 +493,7 @@ def run_full_pipeline():
         logger.info(f"Remaining: {recovery_status['remaining']}")
 
     timestamp = time.strftime('%Y%m%d_%H%M%S')
-    Path.cwd() / f'pipeline_run_{timestamp}.log'
+    _log_file = Path.cwd() / f'pipeline_run_{timestamp}.log'
 
     set_seed(SEED)
 
@@ -598,7 +603,7 @@ def run_full_pipeline():
             # STAGE 2.1: K-fold Cross Validation (if enabled)
             if ENABLE_KFOLD_CV and full_dataset is not None:
                 logger.info(f"\nStage 2.1: K-fold Cross Validation for {backbone_name}")
-                mean_acc, std_acc, kfold_summary = k_fold_cross_validation(
+                mean_acc, std_acc, _kfold_summary = k_fold_cross_validation(
                     backbone_name, full_dataset, k_folds=K_FOLDS
                 )
                 logger.info(f"K-fold CV Results: {mean_acc:.4f} ± {std_acc:.4f}")
@@ -629,7 +634,7 @@ def run_full_pipeline():
                 )
                 test_loader = create_optimized_dataloader(test_ds, BATCH_SIZE, shuffle=False)
 
-                test_loss, test_acc, test_prec, test_rec, test_f1, _, _, _ = validate_epoch_optimized(
+                _test_loss, test_acc, test_prec, test_rec, test_f1, _, _, _ = validate_epoch_optimized(
                     final_model, test_loader, nn.CrossEntropyLoss(), device=DEVICE
                 )
 
@@ -672,12 +677,16 @@ def run_full_pipeline():
                         export_metadata['test_f1'] = metrics.get('test_f1', 0.0)
 
                     # Get class names from dataset
+                    # Handle both direct datasets (ImageFolder) and wrapped datasets (Subset)
                     if hasattr(train_ds, 'classes'):
                         export_class_names = train_ds.classes
-                    elif hasattr(train_ds, 'dataset') and hasattr(train_ds.dataset, 'classes'):
-                        export_class_names = train_ds.dataset.classes
                     else:
-                        export_class_names = [f'class_{i}' for i in range(NUM_CLASSES or 13)]
+                        # For Subset or other wrappers, access underlying dataset
+                        underlying_ds = getattr(train_ds, 'dataset', None)
+                        if underlying_ds is not None and hasattr(underlying_ds, 'classes'):
+                            export_class_names = underlying_ds.classes
+                        else:
+                            export_class_names = [f'class_{i}' for i in range(NUM_CLASSES or 13)]
 
                     # Export to multiple formats
                     export_results = export_model(
