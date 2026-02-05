@@ -1,8 +1,11 @@
 """Factory for creating all backbone architectures"""
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 
 from .blocks import (
     ConvNeXtBlock,
@@ -66,7 +69,8 @@ class DynamicConv(nn.Module):
         stride = self.stride
         padding = self.padding
 
-        weight_bank_flat = self.weight_bank.view(K, self.out_channels, -1) * self.scale
+        scale = cast(Tensor, self.scale)
+        weight_bank_flat = self.weight_bank.view(K, self.out_channels, -1) * scale
         attention = attention.view(B, K, 1)
         weighted_kernels = (attention.unsqueeze(2) * weight_bank_flat.unsqueeze(0)).sum(dim=1)
 
@@ -148,7 +152,7 @@ class WindowAttention(nn.Module):
 
         nn.init.trunc_normal_(self.relative_position_bias_table, std=.02)
 
-    def forward(self, x, mask=None):
+    def forward(self, x: Tensor, mask: Tensor | None = None) -> Tensor:
         B_, N, C = x.shape
         qkv = self.qkv(x).reshape(B_, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
@@ -156,7 +160,9 @@ class WindowAttention(nn.Module):
         q = q * self.scale
         attn = (q @ k.transpose(-2, -1))
 
-        relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
+        # Cast registered buffer to Tensor for type checking
+        rel_pos_index = cast(Tensor, self.relative_position_index)
+        relative_position_bias = self.relative_position_bias_table[rel_pos_index.view(-1)].view(
             self.window_size * self.window_size, self.window_size * self.window_size, -1
         )
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
@@ -238,7 +244,8 @@ class SwinTransformerBlock(nn.Module):
         x_windows = window_partition(shifted_x, self.window_size)
         x_windows = x_windows.view(-1, self.window_size * self.window_size, C)
 
-        attn_windows = self.attn(x_windows, mask=self.attn_mask)
+        mask = cast(Tensor, self.attn_mask) if self.attn_mask is not None else None
+        attn_windows = self.attn(x_windows, mask=mask)
 
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
         shifted_x = window_reverse(attn_windows, self.window_size, H, W)
@@ -322,19 +329,20 @@ class MobileOneBlock(nn.Module):
     def _init_branches(self):
         """Initialize all branches with proper scaling"""
         for branch in self.conv_kxk:
-            conv = branch[0]
-            nn.init.kaiming_normal_(conv.weight, mode='fan_out', nonlinearity='relu')
-            with torch.no_grad():
-                conv.weight.data *= (1.0 / (self.num_conv_branches + 2))
+            if isinstance(branch, nn.Sequential):
+                conv = cast(nn.Conv2d, branch[0])
+                nn.init.kaiming_normal_(conv.weight, mode='fan_out', nonlinearity='relu')
+                with torch.no_grad():
+                    conv.weight.data *= (1.0 / (self.num_conv_branches + 2))
 
-        conv_1x1 = self.conv_1x1[0]
+        conv_1x1 = cast(nn.Conv2d, self.conv_1x1[0])
         nn.init.kaiming_normal_(conv_1x1.weight, mode='fan_out', nonlinearity='relu')
         with torch.no_grad():
             conv_1x1.weight.data *= (1.0 / (self.num_conv_branches + 2))
 
-    def forward(self, x):
-        if self.is_fused:
-            return self.activation(self.fused_conv(x))
+    def forward(self, x: Tensor) -> Tensor:
+        if self.is_fused and hasattr(self, 'fused_conv'):
+            return self.activation(self.fused_conv(x))  # type: ignore[operator]
 
         out = torch.zeros_like(self.conv_kxk[0](x))
 
@@ -453,7 +461,7 @@ class CustomSwinTransformer(nn.Module):
             nn.Conv2d(embed_dim // 2, embed_dim, 3, 2, 1, bias=False),
             nn.BatchNorm2d(embed_dim),
         )
-        img_size // 4
+        # After stem: spatial resolution is img_size // 4
         self.patches_resolution = [img_size // patch_size, img_size // patch_size]
 
         num_patches = self.patches_resolution[0] * self.patches_resolution[1]
@@ -520,9 +528,9 @@ class CustomSwinTransformer(nn.Module):
             if m.bias is not None:
                 m.bias.data.zero_()
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         x = self.patch_embed(x)
-        B, C, H, W = x.shape
+        _b, _c, _h, _w = x.shape  # Unused but documents expected shape
         x = x.flatten(2).transpose(1, 2)
 
         x = x + self.absolute_pos_embed
@@ -603,7 +611,7 @@ class CustomMobileOne(nn.Module):
             if isinstance(m, MobileOneBlock):
                 for branch in m.conv_kxk:
                     if isinstance(branch, nn.Sequential):
-                        conv = branch[0]
+                        conv = cast(nn.Conv2d, branch[0])
                         nn.init.kaiming_normal_(conv.weight, mode='fan_out', nonlinearity='relu')
                         conv.weight.data *= 0.5
 
@@ -638,11 +646,11 @@ class CustomMobileOne(nn.Module):
         x = self.dropout(x)
         return self.fc(x)
 
-    def fuse_model(self):
+    def fuse_model(self) -> None:
         """Fuse reparameterization for inference"""
         for module in self.modules():
-            if isinstance(module, MobileOneBlock):
-                module.fuse_reparam()
+            if isinstance(module, MobileOneBlock) and hasattr(module, 'fuse_reparam'):
+                module.fuse_reparam()  # type: ignore[operator]
 
 # Simplified architectures (will be filled with actual implementations)
 class GhostModuleV2Enhanced(nn.Module):
@@ -668,12 +676,12 @@ class GhostModuleV2Enhanced(nn.Module):
                 nn.Sigmoid()
             )
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         x1 = self.primary_conv(x)
         x2 = self.cheap_operation(x1)
         out = torch.cat([x1, x2], dim=1)
 
-        if self.use_se:
+        if self.use_se and hasattr(self, 'se'):
             out = out * self.se(out)
 
         return out
@@ -1131,7 +1139,7 @@ class CustomCoAtNet(nn.Module):
             if m.bias is not None:
                 nn.init.zeros_(m.bias)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         # Optimized stem
         x = self.stem(x)  # (B, 128, 56, 56)
 
@@ -1142,18 +1150,18 @@ class CustomCoAtNet(nn.Module):
         x = self.stage2_cnn(x)  # (B, 512, 14, 14)
 
         # Apply attention blocks with direct residuals for best gradient flow
-        B, C, H, W = x.shape
+        b, c, h, w = x.shape
         x_seq = x.flatten(2).transpose(1, 2)  # (B, 196, 512)
 
         for attn_block in self.stage2_attn_blocks:
             x_seq = x_seq + attn_block(x_seq)  # Direct residual connection
 
-        x = x_seq.transpose(1, 2).reshape(B, C, H, W)
+        x = x_seq.transpose(1, 2).reshape(b, c, h, w)
 
         # Stage 3: Optimized transformer
         x = self.stage3_proj(x)  # (B, 768, 14, 14)
 
-        B, C, H, W = x.shape
+        b, c, h, w = x.shape
         x = x.flatten(2).transpose(1, 2)  # (B, 196, 768)
 
         # Apply transformer blocks with direct residuals
@@ -1404,7 +1412,7 @@ class CustomMaxViT(nn.Module):
             nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             if m.bias is not None:
                 nn.init.zeros_(m.bias)
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         # Enhanced stem
         x = self.stem(x)  # (B, 128, 56, 56)
         # Stage 1: DEEP CNN
@@ -1412,15 +1420,15 @@ class CustomMaxViT(nn.Module):
         # Stage 2: VERY DEEP CNN + Attention
         x = self.stage2_cnn(x)  # (B, 512, 14, 14)
         # Apply attention with direct residuals
-        B, C, H, W = x.shape
+        b, c, h, w = x.shape
         x_seq = x.flatten(2).transpose(1, 2)  # (B, 196, 512)
         # Enhanced attention with strong residuals
         for attn_block in self.stage2_attn:
             x_seq = x_seq + attn_block(x_seq)  # Direct residual connection
-        x = x_seq.transpose(1, 2).reshape(B, C, H, W)
+        x = x_seq.transpose(1, 2).reshape(b, c, h, w)
         # Stage 3: Optimized Transformer
         x = self.stage3_proj(x)  # (B, 768, 14, 14)
-        B, C, H, W = x.shape
+        b, c, h, w = x.shape
         x = x.flatten(2).transpose(1, 2)  # (B, 196, 768)
         # Apply transformer blocks with direct residuals for optimal gradient flow
         for transformer_block in self.stage3_transformer:
@@ -1460,13 +1468,16 @@ def create_custom_backbone(name: str, num_classes: int = 1000) -> nn.Module:
     model_class = BACKBONE_MAP[name]
     return model_class(num_classes=num_classes)
 
-def create_custom_backbone_safe(name: str, num_classes: int = 1000) -> nn.Module:
-    """Safe factory function with error handling"""
+def create_custom_backbone_safe(name: str, num_classes: int = 1000) -> nn.Module | None:
+    """Safe factory function with error handling.
+
+    Returns None for invalid backbone names instead of raising an exception.
+    """
     try:
         return create_custom_backbone(name, num_classes)
     except Exception as e:
         logger.error(f"Failed to create backbone {name}: {e}")
-        raise
+        return None
 
 __all__ = [
     'DynamicConv',

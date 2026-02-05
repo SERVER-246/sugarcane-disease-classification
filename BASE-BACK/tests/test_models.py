@@ -15,9 +15,9 @@ sys.path.insert(0, str(src_dir))
 
 # These imports must come after path modification - noqa required
 from src.config.settings import BACKBONES  # noqa: E402
-from src.models.architectures import BACKBONE_MAP  # noqa: E402
 from src.models.architectures import (  # noqa: E402
-    create_custom_backbone as create_custom_backbone_safe,
+    BACKBONE_MAP,
+    create_custom_backbone_safe,
 )
 
 

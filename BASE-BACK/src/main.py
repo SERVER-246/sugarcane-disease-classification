@@ -337,6 +337,9 @@ def k_fold_cross_validation(backbone_name, full_dataset, k_folds=K_FOLDS):
             )
 
             model = create_custom_backbone_safe(backbone_name, NUM_CLASSES)
+            if model is None:
+                logger.error(f"Failed to create model for backbone: {backbone_name}")
+                continue
             model.to(DEVICE)
 
             train_loader = create_optimized_dataloader(fold_train_ds, BATCH_SIZE, shuffle=True)
@@ -389,9 +392,10 @@ def k_fold_cross_validation(backbone_name, full_dataset, k_folds=K_FOLDS):
             # Stage 2: Fine-tuning (unfreeze all parameters)
             logger.info(f"Fold {fold+1} - Stage 2: Fine-tuning")
 
-            # Unfreeze all parameters
-            for param in model.parameters():
-                param.requires_grad = True
+            # Unfreeze all parameters (model cannot be None here due to earlier check)
+            if model is not None:
+                for param in model.parameters():
+                    param.requires_grad = True
 
             optimizer = create_optimized_optimizer(model, lr=BACKBONE_LR, backbone_name=backbone_name)
 
@@ -534,6 +538,8 @@ def run_full_pipeline():
         logger.info(f"\nVerifying {i+1}/{len(BACKBONES)}: {backbone_name}")
         try:
             model = create_custom_backbone_safe(backbone_name, NUM_CLASSES)
+            if model is None:
+                raise ValueError(f"create_custom_backbone_safe returned None for {backbone_name}")
             verification_results[backbone_name] = {
                 'status': 'verified',
                 'num_params': sum(p.numel() for p in model.parameters()),
