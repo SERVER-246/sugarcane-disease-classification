@@ -29,32 +29,32 @@ BASE_DIR = Path(__file__).parent
 sys.path.insert(0, str(BASE_DIR / 'BASE-BACK' / 'src'))
 sys.path.insert(0, str(BASE_DIR / 'ensemble_system'))
 
-import json
-import threading
-import tkinter as tk
-from datetime import datetime
-from tkinter import filedialog, messagebox, ttk
-from typing import Any
+import json  # noqa: E402
+import threading  # noqa: E402
+import tkinter as tk  # noqa: E402
+from datetime import datetime  # noqa: E402
+from tkinter import filedialog, messagebox, ttk  # noqa: E402
+from typing import Any  # noqa: E402
 
 # Plotting
-import matplotlib
-import numpy as np
+import matplotlib  # noqa: E402
+import numpy as np  # noqa: E402
 
 # PyTorch imports
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from PIL import Image, ImageTk
-from torchvision import transforms
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
+from PIL import Image, ImageTk  # noqa: E402
+from torchvision import transforms  # noqa: E402
 
 
-matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')  # noqa: E402
 
 # Image validator for filtering non-sugarcane images
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 
-from image_validator import ImageValidator
+from image_validator import ImageValidator  # noqa: E402
 
 
 # =============================================================================
@@ -329,10 +329,10 @@ class ClassificationEngine:
 
         return results
 
-    def classify_image(self, image_path: str, model_name: str = None) -> dict[str, Any]:
+    def classify_image(self, image_path: str, model_name: str | None = None) -> dict[str, Any]:
         """
         Classify a single image with pre-validation filtering
-        
+
         Returns:
             dict with: predicted_class, confidence, all_probabilities, is_valid, validation_result
         """
@@ -378,7 +378,8 @@ class ClassificationEngine:
             # ============================================================
             # Load and preprocess image
             image = Image.open(image_path).convert('RGB')
-            input_tensor = self.transform(image).unsqueeze(0).to(self.device)
+            input_tensor: torch.Tensor = self.transform(image)  # type: ignore[assignment]
+            input_tensor = input_tensor.unsqueeze(0).to(self.device)
 
             # Inference
             with torch.no_grad():
@@ -826,7 +827,7 @@ class DiseaseClassifierGUI:
     def _on_models_loaded(self, results):
         """Handle model loading completion"""
         loaded = [k for k, v in results.items() if v]
-        failed = [k for k, v in results.items() if not v]
+        _failed = [k for k, v in results.items() if not v]  # noqa: F841
 
         if loaded:
             self.status_label.config(
@@ -844,7 +845,7 @@ class DiseaseClassifierGUI:
 
         self.progress['value'] = 100
 
-    def _update_status(self, message: str, progress: float = None):
+    def _update_status(self, message: str, progress: float | None = None):
         """Update status bar"""
         self.status_label.config(text=message)
         if progress is not None:
@@ -1093,7 +1094,7 @@ class DiseaseClassifierGUI:
         # Color bars based on confidence
         colors = []
         threshold = self.confidence_threshold.get()
-        for i, (cls, val) in enumerate(sorted_items):
+        for i, (_, val) in enumerate(sorted_items):
             if i == 0:  # Top prediction
                 if val > threshold:
                     colors.append(Theme.SUCCESS)
@@ -1310,7 +1311,7 @@ def main():
     def start_app():
         splash.close()
         root.deiconify()  # Show main window
-        app = DiseaseClassifierGUI(root)
+        _app = DiseaseClassifierGUI(root)  # noqa: F841
 
     root.after(2000, start_app)
     root.mainloop()
