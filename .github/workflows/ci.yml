@@ -44,9 +44,9 @@ jobs:
         run: pip install ruff
 
       - name: Run Ruff linter
-        # Lint core files only - exclude legacy scripts and GUI (which has intentional E402)
+        # Lint core files only - exclude legacy scripts (Base-1.py, ensemble_system/)
         run: |
-          ruff check Base_backbones.py BASE-BACK/ tests/ image_validator.py --output-format=github
+          ruff check Base_backbones.py BASE-BACK/ tests/ image_validator.py disease_classifier_gui.py --output-format=github
 
   # ===========================================================================
   # Type Checking with Pyright
