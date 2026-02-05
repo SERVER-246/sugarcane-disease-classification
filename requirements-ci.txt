@@ -43,6 +43,7 @@ seaborn>=0.13.0
 # =============================================================================
 onnx>=1.14.0
 onnxruntime>=1.16.0
+onnxscript>=0.1.0  # Required for torch.onnx.export with recent PyTorch versions
 
 # =============================================================================
 # Utilities

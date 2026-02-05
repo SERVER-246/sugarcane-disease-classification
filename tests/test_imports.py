@@ -5,9 +5,10 @@
 # Purpose: Verify all critical modules import successfully
 # ============================================================================
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 
 class TestCoreImports:
@@ -50,21 +51,21 @@ class TestProjectImports:
     def test_import_base_backbones(self):
         """Test Base_backbones module import."""
         from Base_backbones import (
-            create_custom_backbone,
             BACKBONES,
-            NUM_CLASSES,
             IMG_SIZE,
+            _num_classes,
+            create_custom_backbone,
         )
         assert len(BACKBONES) == 15
         assert callable(create_custom_backbone)
-        # NUM_CLASSES may be None (set dynamically from dataset)
-        assert NUM_CLASSES is None or isinstance(NUM_CLASSES, int)
+        # _num_classes may be None (set dynamically from dataset)
+        assert _num_classes is None or isinstance(_num_classes, int)
         assert isinstance(IMG_SIZE, int)  # IMG_SIZE is always set
 
     def test_import_backbones_list(self):
         """Test that BACKBONES list is correct."""
         from Base_backbones import BACKBONES
-        
+
         expected_backbones = [
             "CustomConvNeXt",
             "CustomEfficientNetV4",
@@ -82,8 +83,8 @@ class TestProjectImports:
             "CustomMobileOne",
             "CustomDynamicConvNet",
         ]
-        
-        assert BACKBONES == expected_backbones
+
+        assert expected_backbones == BACKBONES
 
     def test_import_image_validator(self):
         """Test image_validator module import."""
@@ -100,7 +101,7 @@ class TestProjectImports:
             root.destroy()
         except Exception:
             pytest.skip("Tkinter/display not available in CI environment")
-        
+
         # If tkinter works, import the GUI module
         import disease_classifier_gui
         assert disease_classifier_gui is not None

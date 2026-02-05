@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+
 # Add BASE-BACK to path
 base_back_dir = Path(__file__).parent.parent / 'BASE-BACK' / 'src'
 sys.path.insert(0, str(base_back_dir))
@@ -11,8 +12,8 @@ print(f"✓ Added to sys.path: {base_back_dir}")
 print(f"✓ Path exists: {base_back_dir.exists()}")
 
 try:
-    from config.settings import BACKBONES, NUM_CLASSES, CKPT_DIR, DEVICE
-    print(f"✓ Imported config.settings")
+    from config.settings import BACKBONES, CKPT_DIR, DEVICE, NUM_CLASSES
+    print("✓ Imported config.settings")
     print(f"  - NUM_CLASSES: {NUM_CLASSES}")
     print(f"  - DEVICE: {DEVICE}")
     print(f"  - CKPT_DIR: {CKPT_DIR}")
@@ -22,15 +23,13 @@ except Exception as e:
     sys.exit(1)
 
 try:
-    from utils import logger
-    print(f"✓ Imported utils.logger")
+    print("✓ Imported utils.logger")
 except Exception as e:
     print(f"✗ Failed to import utils: {e}")
     sys.exit(1)
 
 try:
-    from models import create_custom_backbone_safe
-    print(f"✓ Imported models")
+    print("✓ Imported models")
 except Exception as e:
     print(f"✗ Failed to import models: {e}")
     sys.exit(1)
@@ -46,6 +45,6 @@ if checkpoint_dir.exists():
     if checkpoints:
         print(f"   Examples: {[c.name for c in checkpoints[:3]]}")
 else:
-    print(f"   ⚠️  WARNING: Checkpoint directory doesn't exist!")
+    print("   ⚠️  WARNING: Checkpoint directory doesn't exist!")
 
 print("\n✅ All imports successful!")

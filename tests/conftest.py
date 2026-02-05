@@ -12,9 +12,17 @@ from pathlib import Path
 import pytest
 import torch
 
+
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+# CRITICAL: Set DBT_BASE_DIR before any imports of Base_backbones.py
+# This prevents FileNotFoundError on CI runners where F:\ doesn't exist
+if not os.environ.get('DBT_BASE_DIR'):
+    # Use project root for tests, creating temp directories as needed
+    os.environ['DBT_BASE_DIR'] = str(PROJECT_ROOT)
+    os.environ['CI'] = 'true'  # Signal we're in CI-like environment
 
 
 # =============================================================================
@@ -26,11 +34,11 @@ def configure_environment():
     """Configure environment for testing."""
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["DBT_DEBUG_MODE"] = "false"
-    
+
     # Suppress TensorFlow warnings
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-    
+
     yield
 
 

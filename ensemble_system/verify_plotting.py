@@ -6,6 +6,7 @@ Verifies imports and function availability without running full pipeline
 import sys
 from pathlib import Path
 
+
 # Add paths
 BASE_BACK_PATH = Path(__file__).parent.parent / 'BASE-BACK' / 'src'
 if str(BASE_BACK_PATH) not in sys.path:
@@ -13,23 +14,23 @@ if str(BASE_BACK_PATH) not in sys.path:
 
 def verify_plotting_imports():
     """Verify all plotting imports work correctly"""
-    
+
     print("=" * 80)
     print("ENSEMBLE PLOTTING VERIFICATION")
     print("=" * 80)
-    
+
     errors = []
-    
+
     # Check ensemble_plots module
     print("\n[1/7] Checking ensemble_plots.py...")
     try:
         from ensemble_plots import (
+            create_all_plots,
             plot_confusion_matrix,
-            plot_roc_curves,
-            plot_per_class_metrics,
-            plot_training_history,
             plot_ensemble_comparison,
-            create_all_plots
+            plot_per_class_metrics,
+            plot_roc_curves,
+            plot_training_history,
         )
         print("  ✓ ensemble_plots.py imports successful")
         print("    - plot_confusion_matrix")
@@ -41,7 +42,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"ensemble_plots.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Check Stage 2
     print("\n[2/7] Checking stage2_score_ensembles.py...")
     try:
@@ -50,7 +51,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"stage2_score_ensembles.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Check Stage 3
     print("\n[3/7] Checking stage3_stacking.py...")
     try:
@@ -59,7 +60,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"stage3_stacking.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Check Stage 4
     print("\n[4/7] Checking stage4_feature_fusion.py...")
     try:
@@ -68,7 +69,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"stage4_feature_fusion.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Check Stage 5
     print("\n[5/7] Checking stage5_mixture_experts.py...")
     try:
@@ -77,7 +78,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"stage5_mixture_experts.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Check Stage 6
     print("\n[6/7] Checking stage6_meta_ensemble.py...")
     try:
@@ -86,7 +87,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"stage6_meta_ensemble.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Check Stage 7
     print("\n[7/7] Checking stage7_distillation.py...")
     try:
@@ -95,7 +96,7 @@ def verify_plotting_imports():
     except ImportError as e:
         errors.append(f"stage7_distillation.py: {e}")
         print(f"  ✗ ERROR: {e}")
-    
+
     # Summary
     print("\n" + "=" * 80)
     if not errors:
@@ -110,7 +111,7 @@ def verify_plotting_imports():
             print(f"  - {error}")
         return False
     print("=" * 80)
-    
+
     return True
 
 if __name__ == '__main__':

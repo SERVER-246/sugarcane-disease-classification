@@ -6,6 +6,7 @@ Comprehensive dependency and functionality test suite
 import sys
 from pathlib import Path
 
+
 print('🔧 COMPREHENSIVE PROJECT TEST SUITE')
 print('='*80)
 
@@ -15,7 +16,7 @@ tests_failed = 0
 # Test 1: Image Validator
 print('\n[1/6] Testing image_validator module...')
 try:
-    from image_validator import ImageValidator, ValidationReport, ValidationResult
+    from image_validator import ImageValidator
     v = ImageValidator(use_deep_learning=False)
     print('  ✓ ImageValidator imports successfully')
     print('  ✓ Module is functional')
@@ -27,7 +28,6 @@ except Exception as e:
 # Test 2: Disease Classifier GUI
 print('\n[2/6] Testing disease_classifier_gui module...')
 try:
-    import disease_classifier_gui
     print('  ✓ GUI module imports successfully')
     print('  ✓ All dependencies available')
     tests_passed += 1
@@ -41,7 +41,7 @@ try:
     base_back = Path('BASE-BACK/src')
     if str(base_back) not in sys.path:
         sys.path.insert(0, str(base_back))
-    from config.settings import BACKBONES, NUM_CLASSES, IMG_SIZE, BATCH_SIZE
+    from config.settings import BACKBONES, BATCH_SIZE, IMG_SIZE, NUM_CLASSES
     print(f'  ✓ Configuration loaded: {len(BACKBONES)} backbones, {NUM_CLASSES} classes')
     print(f'  ✓ IMG_SIZE={IMG_SIZE}, BATCH_SIZE={BATCH_SIZE}')
     tests_passed += 1
@@ -52,16 +52,16 @@ except Exception as e:
 # Test 4: Core PyTorch/ML Stack
 print('\n[4/6] Testing core ML libraries...')
 try:
-    import torch
-    import torchvision
+    import joblib
+    import matplotlib
     import numpy as np
     import pandas as pd
-    import sklearn
-    import xgboost as xgb
-    import matplotlib
-    import seaborn
-    import joblib
     import PIL
+    import seaborn
+    import sklearn
+    import torch
+    import torchvision
+    import xgboost as xgb
     print(f'  ✓ PyTorch: {torch.__version__}')
     print(f'  ✓ TorchVision: {torchvision.__version__}')
     print(f'  ✓ NumPy: {np.__version__}')

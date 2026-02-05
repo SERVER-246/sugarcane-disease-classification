@@ -51,7 +51,7 @@ def _unwrap_logits(outputs):
             if isinstance(o, torch.Tensor) and main is None:
                 main = o
             elif hasattr(o, 'logits') and main is None:
-                main = o.logits  # noqa: B009
+                main = o.logits  # type: ignore[union-attr]
             elif isinstance(o, torch.Tensor) and main is not None and aux is None:
                 aux = o
         if main is not None:
