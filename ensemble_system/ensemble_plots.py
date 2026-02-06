@@ -48,7 +48,7 @@ def plot_confusion_matrix(
         cm = confusion_matrix(y_true, y_pred)
         cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 9))
+        _fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 9))
 
         # Raw confusion matrix
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
@@ -96,12 +96,12 @@ def plot_roc_curves(
             num_classes = len(class_names)
 
         # Binarize labels for multi-class ROC
-        y_true_bin = label_binarize(y_true, classes=np.arange(num_classes))
+        y_true_bin = np.asarray(label_binarize(y_true, classes=np.arange(num_classes)))
 
-        fig, ax = plt.subplots(figsize=(12, 10))
+        _fig, ax = plt.subplots(figsize=(12, 10))
 
         # Plot ROC curve for each class
-        colors = plt.cm.tab20(np.linspace(0, 1, num_classes))
+        colors = plt.colormaps['tab20'](np.linspace(0, 1, num_classes))
 
         for i, (class_name, color) in enumerate(zip(class_names, colors)):
             fpr, tpr, _ = roc_curve(y_true_bin[:, i], y_probs[:, i])
@@ -140,7 +140,7 @@ def plot_training_history(
     Plot training and validation metrics over epochs
     """
     try:
-        fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+        _fig, axes = plt.subplots(1, 2, figsize=(15, 5))
 
         # Plot loss
         if 'train_loss' in history and 'val_loss' in history:
@@ -188,14 +188,14 @@ def plot_per_class_metrics(
     try:
         from sklearn.metrics import precision_recall_fscore_support
 
-        precision, recall, f1, support = precision_recall_fscore_support(
+        precision, recall, f1, _support = precision_recall_fscore_support(
             y_true, y_pred, average=None, zero_division=0
         )
 
         x = np.arange(len(class_names))
         width = 0.25
 
-        fig, ax = plt.subplots(figsize=(14, 6))
+        _fig, ax = plt.subplots(figsize=(14, 6))
 
         bars1 = ax.bar(x - width, precision, width, label='Precision', color='#3498db')
         bars2 = ax.bar(x, recall, width, label='Recall', color='#2ecc71')
@@ -235,14 +235,14 @@ def plot_per_class_metrics(
 
 
 def plot_ensemble_comparison(
-    results: dict = None,
-    save_path: Path = None,
+    results: dict | None = None,
+    save_path: Path | None = None,
     title: str = "Ensemble Methods Comparison",
     metric: str = 'test_accuracy',
     # Alternative interface
-    ensemble_names: list[str] = None,
-    ensemble_accuracies: list[float] = None,
-    output_dir: Path = None,
+    ensemble_names: list[str] | None = None,
+    ensemble_accuracies: list[float] | None = None,
+    output_dir: Path | None = None,
     prefix: str = ""
 ):
     """
@@ -258,13 +258,16 @@ def plot_ensemble_comparison(
             scores = ensemble_accuracies
             if save_path is None and output_dir is not None:
                 save_path = Path(output_dir) / f'{prefix}_ensemble_comparison.tiff'
-        else:
+        elif results is not None:
             methods = list(results.keys())
             scores = [results[m][metric] for m in methods]
+        else:
+            logger.error("  x plot_ensemble_comparison: no data provided (results or ensemble_names/accuracies)")
+            return
 
-        fig, ax = plt.subplots(figsize=(12, 6))
+        _fig, ax = plt.subplots(figsize=(12, 6))
 
-        colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(methods)))
+        colors = plt.colormaps['viridis'](np.linspace(0.3, 0.9, len(methods)))
         bars = ax.bar(methods, scores, color=colors, edgecolor='black', linewidth=1.5)
 
         ax.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
