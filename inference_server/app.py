@@ -17,8 +17,12 @@ from fastapi import FastAPI
 
 from inference_server import __version__
 from inference_server.engine.loader import load_model
+from inference_server.engine.multi_loader import load_all_models
+from inference_server.routes.analytics import router as analytics_router
+from inference_server.routes.feedback import router as feedback_router
 from inference_server.routes.health import router as health_router
 from inference_server.routes.inference import router as inference_router
+from inference_server.routes.models import router as models_router
 
 
 # ---------------------------------------------------------------------------
@@ -36,13 +40,18 @@ logger = logging.getLogger("inference_server")
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Load the model once at startup; release on shutdown."""
+    """Load all models once at startup; release on shutdown."""
     logger.info("Starting inference server v%s …", __version__)
     try:
+        # Load single model for backward compatibility
         load_model()
-        logger.info("Model loaded — server is ready.")
+        logger.info("Default model loaded.")
+
+        # Load ALL models for ensemble inference
+        models = load_all_models()
+        logger.info("Loaded %d backbone models for ensemble inference.", len(models))
     except Exception:
-        logger.exception("Failed to load model on startup")
+        logger.exception("Failed to load models on startup")
         # Server will still start; /health/ready will report not ready
     yield
     logger.info("Shutting down inference server.")
@@ -55,14 +64,25 @@ app = FastAPI(
     title="Sugarcane Disease Classifier",
     description=(
         "Inference API for the 15-backbone sugarcane disease classification "
-        "pipeline.  Provides health probes and a single-image prediction endpoint."
+        "pipeline. Provides health probes, single-image prediction, "
+        "multi-model ensemble inference, feedback collection, and analytics."
     ),
     version=__version__,
     lifespan=lifespan,
 )
 
+# Health & inference routes
 app.include_router(health_router)
 app.include_router(inference_router)
+
+# Models & classes
+app.include_router(models_router)
+
+# Feedback system
+app.include_router(feedback_router)
+
+# Analytics & connection tracking
+app.include_router(analytics_router)
 
 
 @app.get("/", include_in_schema=False)
