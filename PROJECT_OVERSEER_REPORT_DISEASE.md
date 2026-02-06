@@ -1,10 +1,10 @@
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-05 (Sprint 2 Fixes Complete — CI Pipeline Fully Functional)  
+**Last Updated:** 2026-02-05 (Sprint 2 Complete + Python 3.9 Compatibility)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `d247501` (fix: use legacy ONNX exporter for file size test)  
+**Current HEAD Commit Hash:** `5efa55c` (fix: Python 3.9 compatibility with future annotations)  
 **Short One-Line HEALTH:** 🟢 **Green** — Production-ready, Sprint 1 & 2 complete, CI passing, 96.61% accuracy
 
 ---
@@ -894,6 +894,9 @@ The project is production-ready with:
 | `2e80223` | fix(tests): use CustomConvNeXt for ONNX/TorchScript file size tests |
 | `dcb7761` | fix(tests): use ONNX opset 18 to fix CI export test failure |
 | `d247501` | fix(tests): use legacy ONNX exporter (dynamo=False) for file size test |
+| `04a7237` | docs: Update PROJECT_OVERSEER_REPORT with ONNX export fix details |
+| `85be6ac` | fix: Add 'from __future__ import annotations' to Base_backbones.py |
+| `5efa55c` | fix: Add 'from __future__ import annotations' for Python 3.9 compatibility (4 files) |
 
 **Files Fixed (Key Changes):**
 
@@ -944,6 +947,18 @@ The project is production-ready with:
    - **Changed:** `opset_version=14` (widely compatible), assertion `50 < file_size_mb < 500`
    - **File:** `tests/test_export_formats.py::test_onnx_file_size_reasonable`
 
+7. **Python 3.9 Compatibility Fix (2026-02-05):**
+   - **Issue:** `int | None` union type syntax is Python 3.10+ only, causing `TypeError` on Python 3.9 in test-matrix CI
+   - **Root Cause:** PEP 604 union syntax (`X | Y`) requires Python 3.10+
+   - **Fix:** Added `from __future__ import annotations` (PEP 563) to all affected files
+   - **Files Fixed:**
+     - `Base_backbones.py`
+     - `image_validator.py`
+     - `disease_classifier_gui.py`
+     - `BASE-BACK/src/models/architectures.py`
+     - `BASE-BACK/src/utils/checkpoint_manager.py`
+   - **Also Fixed:** Pylance "possibly unbound" warning in checkpoint_manager.py
+
 **Final Verification (2026-02-05):**
 
 | Check | Result | Details |
@@ -954,6 +969,7 @@ The project is production-ready with:
 | Main Tests | ✅ 45 passed, 30 skipped | 32.53s |
 | Total Tests | ✅ 45 + 6 = 51 tests passing | 30 slow tests skipped (by design) |
 | ONNX Export Test | ✅ Fixed | Uses legacy exporter with `dynamo=False` |
+| Python 3.9 Compat | ✅ Fixed | `from __future__ import annotations` added |
 
 **CI Pipeline Status:**
 - ✅ Lint (Ruff) — Ready
@@ -962,6 +978,7 @@ The project is production-ready with:
 - ✅ Build Check — Ready
 - ✅ Security Scan — Ready
 - ✅ Docker Build — Ready
+- ✅ Test Matrix (Python 3.9-3.12) — Ready (with future annotations fix)
 
 ### Completed Items ✅
 
