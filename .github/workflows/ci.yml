@@ -47,7 +47,7 @@ jobs:
       - name: Run Ruff linter
         # Lint core files only - exclude legacy scripts (Base-1.py, ensemble_system/)
         run: |
-          ruff check Base_backbones.py BASE-BACK/ tests/ image_validator.py disease_classifier_gui.py --output-format=github
+          ruff check Base_backbones.py BASE-BACK/ tests/ image_validator.py disease_classifier_gui.py inference_server/ --output-format=github
 
   # ===========================================================================
   # Type Checking with Pyright (Informational - does not block CI)

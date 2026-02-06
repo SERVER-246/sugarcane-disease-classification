@@ -29,9 +29,10 @@ services:
       - PYTHONIOENCODING=utf-8
       - TF_CPP_MIN_LOG_LEVEL=3
     healthcheck:
-      test: ["CMD", "python", "-c", "from Base_backbones import BACKBONES; print(len(BACKBONES))"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
+      start_period: 30s
       retries: 3
     deploy:
       resources:
@@ -61,9 +62,10 @@ services:
       - TF_CPP_MIN_LOG_LEVEL=3
       - NVIDIA_VISIBLE_DEVICES=all
     healthcheck:
-      test: ["CMD", "python", "-c", "import torch; assert torch.cuda.is_available()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
+      start_period: 30s
       retries: 3
     deploy:
       resources:

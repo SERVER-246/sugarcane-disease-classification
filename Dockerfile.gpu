@@ -90,6 +90,7 @@ COPY image_validator.py .
 COPY disease_classifier_gui.py .
 COPY BASE-BACK/ ./BASE-BACK/
 COPY ensemble_system/ ./ensemble_system/
+COPY inference_server/ ./inference_server/
 
 # Copy checkpoints if they exist (optional)
 # COPY checkpoints/ ./checkpoints/
@@ -101,12 +102,12 @@ RUN mkdir -p /app/checkpoints /app/uploads /app/outputs \
 # Switch to non-root user
 USER classifier
 
-# Expose port for inference server (if added later)
+# Expose port for inference server
 EXPOSE 8000
 
-# Health check - verify CUDA is available
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; print('OK')" || exit 1
+# Health check — hit the /health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Default command - verify GPU installation
-CMD ["python", "-c", "import torch; from Base_backbones import BACKBONES; cuda_status = 'CUDA available' if torch.cuda.is_available() else 'CPU only'; print(f'Disease Classifier ready: {len(BACKBONES)} backbones, PyTorch {torch.__version__}, {cuda_status}')"]
+# Default command — run the inference server
+CMD ["uvicorn", "inference_server.app:app", "--host", "0.0.0.0", "--port", "8000"]
