@@ -2,6 +2,7 @@
 Ensemble Plotting Utilities
 Comprehensive visualization functions for ensemble results
 """
+from __future__ import annotations
 
 import matplotlib
 import numpy as np

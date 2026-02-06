@@ -3,6 +3,7 @@ Ensemble Checkpoint Manager
 Handles recovery from interrupted ensemble training
 Mirrors BASE-BACK/src/utils/checkpoint_manager.py structure
 """
+from __future__ import annotations
 
 import sys
 from pathlib import Path
