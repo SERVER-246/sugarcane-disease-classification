@@ -899,6 +899,8 @@ The project is production-ready with:
 | `5efa55c` | fix: Add 'from __future__ import annotations' for Python 3.9 compatibility (4 files) |
 | `3a069e5` | docs: Update PROJECT_OVERSEER_REPORT with Python 3.9 compat fix details |
 | `26c4c78` | fix(compat): Add PEP 563 annotations to ensemble_system files for Python 3.9 support |
+| `feaecf5` | fix(pylance): Resolve 14 diagnostics in ensemble_plots.py + update overseer report |
+| `ba903cd` | feat(sprint-3a): Add FastAPI inference server foundation (10 new files, health + predict endpoints) |
 
 **Files Fixed (Key Changes):**
 
@@ -1014,6 +1016,17 @@ The project is production-ready with:
     - **ALL Pylance errors resolved** (0 remaining)
     - **ALL Ruff lint errors resolved** (0 remaining)
     - No `# noqa` stamps on actual errors (only on intentional patterns like E402 for late imports)
+13. ✅ **Sprint 3A: Inference Server Foundation** (2026-02-06)
+    - FastAPI server with 10 new files in `inference_server/`
+    - Health endpoints: `GET /health`, `/health/ready`, `/health/live`
+    - Inference endpoint: `POST /predict` (single image, multipart upload)
+    - Auto-loads `CustomConvNeXt` from `checkpoints/` on startup (CUDA-enabled)
+    - Pydantic schemas, interactive docs at `/docs`
+    - Dockerfiles updated: `CMD uvicorn`, HTTP healthchecks
+    - `docker-compose.yml` updated with HTTP health probes
+    - Added `inference_server/` to CI lint scope
+    - Dependencies: `fastapi==0.128.2`, `uvicorn[standard]==0.34.3`, `python-multipart==0.0.22`
+    - **No existing code modified** (additive only)
 
 ### Partial Items ⚠️
 
@@ -1024,7 +1037,7 @@ The project is production-ready with:
 ### Missing / Broken Items ❌
 
 1. ~~**No CI/CD pipeline**~~ ✅ **RESOLVED** — GitHub Actions workflows fully implemented
-2. **No inference server** — Only GUI-based inference (no FastAPI server)
+2. ~~**No inference server**~~ ✅ **RESOLVED** — FastAPI server implemented (Sprint 3A)
 3. **No auto-retraining system** — Manual retraining only
 4. **No analytics/monitoring** — No correction tracking or performance dashboards
 5. **TensorRT optimization** — Export works but optimization pending
