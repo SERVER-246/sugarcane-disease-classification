@@ -73,7 +73,7 @@ class ImageValidator:
     MAX_SIZE = 8000  # Maximum dimension
     MIN_QUALITY_SCORE = 30  # Minimum quality (0-100)
     MIN_VEGETATION_SCORE = 0.40  # Minimum green vegetation ratio
-    MIN_SUGARCANE_CONFIDENCE = 0.50  # Minimum confidence for sugarcane
+    MIN_SUGARCANE_CONFIDENCE = 0.55  # Minimum confidence for sugarcane
 
     # Valid image extensions
     VALID_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff', '.tif'}
@@ -481,12 +481,27 @@ class ImageValidator:
         elongation_score = self._check_elongation(image)
         details['elongation_score'] = elongation_score
 
+        # Feature 5: Edge density - reject screenshots, diagrams, UI elements
+        edge_density = self._compute_edge_density(image)
+        details['edge_density'] = edge_density
+
+        # Penalize images with very high edge density (UI, text, diagrams)
+        # or very low edge density (solid colors, sky, blank images)
+        if edge_density > 0.35:
+            edge_penalty = min(0.3, (edge_density - 0.35) * 1.5)
+        elif edge_density < 0.05:
+            edge_penalty = 0.2
+        else:
+            edge_penalty = 0.0
+        details['edge_penalty'] = edge_penalty
+
         # Combine features
         # These are heuristics - a trained model would be better
         sugarcane_score = (
             color_match * 0.35 +
-            vein_score * 0.35 +
-            elongation_score * 0.30
+            vein_score * 0.30 +
+            elongation_score * 0.25 +
+            (1.0 - edge_penalty) * 0.10
         )
 
         return min(1.0, max(0.0, sugarcane_score)), details
@@ -494,15 +509,28 @@ class ImageValidator:
     def _match_sugarcane_colors(self, img_array: np.ndarray) -> float:
         """Check if colors match typical sugarcane leaf colors"""
         # Define typical sugarcane color ranges (RGB)
+        # Broadened to cover full spectrum of healthy AND diseased leaves
         sugarcane_colors = [
-            # Healthy green
+            # Healthy green (bright)
             ([30, 80, 20], [100, 180, 80]),
+            # Dark green (mature leaves)
+            ([20, 50, 10], [80, 120, 60]),
             # Yellow-green (mild stress)
             ([100, 140, 40], [180, 200, 100]),
-            # Brown spots
-            ([60, 40, 20], [140, 100, 60]),
-            # Red-brown (disease)
-            ([100, 40, 30], [180, 100, 80]),
+            # Pale yellow (chlorosis / yellow leaf disease)
+            ([150, 160, 50], [220, 220, 120]),
+            # Brown spots (fungal diseases)
+            ([60, 40, 20], [160, 120, 80]),
+            # Dark brown (severe disease / wilt)
+            ([40, 25, 10], [100, 70, 45]),
+            # Red-brown (Red_rot)
+            ([100, 30, 20], [200, 100, 80]),
+            # Deep red (Red_rot severe)
+            ([120, 20, 10], [220, 80, 60]),
+            # Grayish-brown (smut / dry tissue)
+            ([80, 70, 60], [160, 150, 130]),
+            # Straw / tan (dead tissue / wilt)
+            ([140, 120, 80], [220, 200, 150]),
         ]
 
         # Sample pixels
@@ -549,6 +577,14 @@ class ImageValidator:
             return 0.6
         else:
             return 0.3
+
+    def _compute_edge_density(self, image: Image.Image) -> float:
+        """Compute edge density to detect non-natural images (screenshots, diagrams, UI)."""
+        gray = image.convert('L').resize((224, 224))
+        edges = gray.filter(ImageFilter.FIND_EDGES)
+        edge_array = np.array(edges)
+        # Fraction of pixels with strong edges
+        return float(np.mean(edge_array > 30))
 
     def _check_elongation(self, image: Image.Image) -> float:
         """Check for elongated leaf-like structures"""
