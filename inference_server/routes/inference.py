@@ -12,12 +12,12 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from inference_server.engine.predictor import predict_image
-from inference_server.engine.multi_predictor import (
+from inference_server.engine.multi_predictor import (  # noqa: I001
     EnsemblePrediction,
     format_predictions_table,
     predict_all_models,
 )
+from inference_server.engine.predictor import predict_image
 from inference_server.schemas import (
     EnsembleResult,
     ModelTableRow,

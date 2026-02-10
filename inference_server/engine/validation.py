@@ -6,20 +6,22 @@ Rejects non-sugarcane, corrupted, or low-quality images BEFORE inference.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from PIL import Image
+from PIL import Image  # noqa: I001
+
 
 # Add project root for image_validator import
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from image_validator import ImageValidator, ValidationReport, ValidationResult  # noqa: E402
+from image_validator import ImageValidator, ValidationReport, ValidationResult  # noqa: E402, I001
 
 logger = logging.getLogger("inference_server.validation")
 
@@ -67,10 +69,8 @@ def validate_image_bytes(image_bytes: bytes) -> ValidationReport:
         report = validator.validate(str(tmp_path))
 
         # Cleanup temp file
-        try:
+        with contextlib.suppress(Exception):
             tmp_path.unlink()
-        except Exception:
-            pass
 
         return report
 

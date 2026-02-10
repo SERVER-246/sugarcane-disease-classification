@@ -13,7 +13,8 @@ from typing import Any
 import torch
 from torch import nn
 
-from inference_server import config
+from inference_server import config  # noqa: I001
+
 
 logger = logging.getLogger("inference_server.multi_loader")
 

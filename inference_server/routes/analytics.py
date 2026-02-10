@@ -12,12 +12,13 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
-from inference_server import config
+from inference_server import config  # noqa: I001
 from inference_server.schemas import (
     ConnectionReportRequest,
     ConnectionReportResponse,
     RetrainStatusResponse,
 )
+
 
 logger = logging.getLogger("inference_server.routes.analytics")
 router = APIRouter(tags=["analytics"])

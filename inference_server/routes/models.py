@@ -7,14 +7,15 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from inference_server import config
-from inference_server.engine.multi_loader import get_all_models, get_student_model, get_model_device
+from inference_server import config  # noqa: I001
+from inference_server.engine.multi_loader import get_all_models, get_model_device, get_student_model
 from inference_server.schemas import (
-    ClassInfo,
     ClassesListResponse,
+    ClassInfo,
     ModelInfo,
     ModelsListResponse,
 )
+
 
 router = APIRouter(tags=["models"])
 

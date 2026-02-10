@@ -20,13 +20,14 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from inference_server import config
+from inference_server import config  # noqa: I001
 from inference_server.engine.multi_loader import (
     get_all_models,
     get_model_device,
     get_student_model,
 )
 from inference_server.engine.validation import validate_image_bytes
+
 
 logger = logging.getLogger("inference_server.multi_predictor")
 

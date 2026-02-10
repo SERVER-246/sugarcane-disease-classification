@@ -13,13 +13,14 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
-from inference_server import config
+from inference_server import config  # noqa: I001
 from inference_server.schemas import (
-    ClassInfo,
     ClassesListResponse,
+    ClassInfo,
     FeedbackRequest,
     FeedbackResponse,
 )
+
 
 logger = logging.getLogger("inference_server.routes.feedback")
 router = APIRouter(prefix="/feedback", tags=["feedback"])
