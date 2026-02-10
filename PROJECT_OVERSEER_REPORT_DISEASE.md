@@ -4,7 +4,7 @@
 **Last Updated:** 2026-02-10 (V2 Visualization Wiring Complete — Training Launch Ready)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** *(pending commit — V2 per-backbone plot wiring + V1 Pylance fixes)*  
+**Current HEAD Commit Hash:** `1b5b1a0` (V2 per-backbone plot wiring + V1 Pylance fixes)  
 **Short One-Line HEALTH:** 🟢 **Green** — Production-ready, V2 segmentation fully wired (70 files), per-backbone plots match V1 output, training launch ready
 
 ---
