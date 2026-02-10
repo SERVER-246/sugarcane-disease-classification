@@ -347,6 +347,32 @@ class PipelineV2:
         except Exception as e:
             logger.warning(f"Training curves failed: {e}")
 
+        # Per-backbone evaluation plots (confusion matrix, ROC, per-class)
+        try:
+            from V2_segmentation.visualization.backbone_plots import BackbonePlots
+            bp = BackbonePlots()
+            for npz_file in sorted(CKPT_V2_DIR.glob("*_eval.npz")):
+                bk_name = npz_file.stem.replace("_eval", "")
+                logger.info(f"  Generating eval plots for {bk_name}...")
+                paths = bp.plot_from_saved_eval(bk_name, eval_dir=npz_file.parent)
+                plots_generated.extend(str(p) for p in paths.values())
+        except Exception as e:
+            logger.warning(f"Backbone eval plots failed: {e}")
+
+        # Ensemble stage plots (if ensemble stages saved predictions)
+        try:
+            from V2_segmentation.visualization.ensemble_stage_plots import EnsembleStagePlots
+            esp = EnsembleStagePlots()
+            ensemble_dir = CKPT_V2_DIR.parent / "ensemble_v2_results"
+            if ensemble_dir.exists():
+                for stage_npz in sorted(ensemble_dir.glob("stage_*_eval.npz")):
+                    stage_name = stage_npz.stem.replace("_eval", "")
+                    logger.info(f"  Generating ensemble plots for {stage_name}...")
+                    paths = esp.plot_from_saved_eval(str(stage_npz), stage_name=stage_name)
+                    plots_generated.extend(str(p) for p in paths.values())
+        except Exception as e:
+            logger.warning(f"Ensemble stage plots failed: {e}")
+
         return {
             "plots_generated": len(plots_generated),
             "paths": plots_generated,

@@ -307,6 +307,13 @@ def _run_phase(
         "grad_accum": grad_accum_steps,
     }
 
+    # ── Epoch history for training curve plots ────────────────────
+    epoch_history: dict[str, list[float]] = {
+        "train_loss": [], "val_loss": [],
+        "val_acc": [], "val_mIoU": [],
+        "lr": [],
+    }
+
     for epoch in range(1, epochs + 1):
         t0 = time.time()
 
@@ -336,6 +343,18 @@ def _run_phase(
             f"val_acc={val_acc:.4f}  val_mIoU={val_miou:.4f}"
         )
 
+        # ── Record history ───────────────────────────────────────────
+        epoch_history["train_loss"].append(float(train_loss))
+        epoch_history["val_loss"].append(float(val_loss))
+        epoch_history["val_acc"].append(float(val_acc))
+        epoch_history["val_mIoU"].append(float(val_miou))
+        current_lr = optimizer.param_groups[0]["lr"]
+        epoch_history["lr"].append(float(current_lr))
+        # Also capture seg-specific losses if present
+        for lk in ("avg_loss_seg", "avg_loss_cls"):
+            if lk in val_metrics:
+                epoch_history.setdefault(lk, []).append(float(val_metrics[lk]))
+
         # ── Best checkpoint ──────────────────────────────────────────
         current_val = val_metrics.get(tracked_key, 0)
         if current_val > best_metric_val:
@@ -364,6 +383,9 @@ def _run_phase(
         logger.info(f"  Restored Phase {phase_name} best checkpoint")
 
     MemoryManager.log_vram(f"after Phase {phase_name}")
+
+    # Attach history to best_val_metrics for caller
+    best_val_metrics["_epoch_history"] = epoch_history
     return best_val_metrics
 
 
@@ -545,6 +567,14 @@ def train_v2_backbone(
     ckpt_mgr.save_final(model, final_metrics)
     results["rollback"] = False
 
+    # ================================================================
+    #  FINAL EVALUATION + PLOTS (V1-matching artifacts)
+    # ================================================================
+    _generate_final_artifacts(
+        model, loaders, backbone_name, results,
+        phase_a_metrics, phase_b_metrics, phase_c_metrics,
+    )
+
     elapsed = time.time() - t_start
     results["total_time_s"] = round(elapsed, 1)
     logger.info(
@@ -555,6 +585,158 @@ def train_v2_backbone(
 
     _cleanup_gpu()
     return results
+
+
+@torch.no_grad()
+def _collect_val_predictions(
+    model: DualHeadModel,
+    loader: DataLoader,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Run a full val pass collecting per-sample class probabilities.
+
+    Returns
+    -------
+    (all_labels, all_probs) where
+        all_labels : (N,) int array of true class indices
+        all_probs  : (N, C) float array of softmax probabilities
+    """
+    import torch.nn.functional as F  # noqa: N812
+
+    model.eval()
+    all_labels_list: list[np.ndarray] = []
+    all_probs_list: list[np.ndarray] = []
+
+    for batch in loader:
+        images = batch["image"].to(DEVICE, non_blocking=True)
+        labels = batch["label"].to(DEVICE, non_blocking=True)
+
+        with amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+            outputs = model(images)
+
+        probs = F.softmax(outputs["cls_logits"], dim=1).cpu().numpy()
+        all_probs_list.append(probs)
+        all_labels_list.append(labels.cpu().numpy())
+
+    return np.concatenate(all_labels_list), np.concatenate(all_probs_list)
+
+
+def _generate_final_artifacts(
+    model: DualHeadModel,
+    loaders: dict[str, DataLoader],
+    backbone_name: str,
+    results: dict[str, Any],
+    phase_a_metrics: dict[str, Any],
+    phase_b_metrics: dict[str, Any],
+    phase_c_metrics: dict[str, Any],
+) -> None:
+    """Save training history JSON, evaluation NPZ, and generate all plots.
+
+    Produces the V1-equivalent artifacts:
+      - {backbone}_history.json        (for training curve plots)
+      - {backbone}_eval.npz            (labels, probs, confusion_matrix)
+      - {backbone}_per_class.json      (per-class P/R/F1)
+      - {backbone}_confusion_matrix.tiff
+      - {backbone}_roc_curves.tiff
+      - {backbone}_per_class_metrics.tiff
+      - {backbone}_curves.tiff         (training history with phase lines)
+    """
+    import json as _json
+    from V2_segmentation.config import CKPT_V2_DIR, CLASS_NAMES
+    from V2_segmentation.training.metrics import per_class_metrics, confusion_matrix
+
+    logger.info(f"  Generating final artifacts for {backbone_name}...")
+
+    # ── 1. Merge epoch history from all phases ───────────────────────
+    merged_history: dict[str, list[float]] = {}
+    phase_boundaries: list[int] = []
+    epoch_offset = 0
+
+    for _phase_key, phase_metrics in [
+        ("A", phase_a_metrics), ("B", phase_b_metrics), ("C", phase_c_metrics),
+    ]:
+        hist = phase_metrics.get("_epoch_history", {})
+        if not hist:
+            continue
+        n_epochs = len(hist.get("train_loss", []))
+        for key, values in hist.items():
+            merged_history.setdefault(key, []).extend(values)
+        epoch_offset += n_epochs
+        phase_boundaries.append(epoch_offset)
+
+    # Remove trailing boundary (no transition after last phase)
+    if phase_boundaries:
+        phase_boundaries = phase_boundaries[:-1]
+
+    # Save history JSON
+    history_path = CKPT_V2_DIR / f"{backbone_name}_history.json"
+    CKPT_V2_DIR.mkdir(parents=True, exist_ok=True)
+    with open(history_path, "w") as f:
+        _json.dump({
+            "backbone_name": backbone_name,
+            "history": merged_history,
+            "phase_boundaries": phase_boundaries,
+        }, f, indent=2)
+    logger.info(f"  Saved history: {history_path.name}")
+    results["history_path"] = str(history_path)
+
+    # ── 2. Collect final val predictions (probs + labels) ────────────
+    try:
+        all_labels, all_probs = _collect_val_predictions(model, loaders["val"])
+        all_preds = np.argmax(all_probs, axis=1)
+
+        # Confusion matrix from final predictions
+        cm = confusion_matrix(all_preds, all_labels)
+
+        # Per-class metrics
+        pcm = per_class_metrics(all_preds, all_labels, list(CLASS_NAMES))
+
+        # Save eval artifacts
+        eval_npz = CKPT_V2_DIR / f"{backbone_name}_eval.npz"
+        np.savez_compressed(
+            str(eval_npz),
+            all_labels=all_labels,
+            all_probs=all_probs,
+            confusion_matrix=cm,
+        )
+
+        pcm_path = CKPT_V2_DIR / f"{backbone_name}_per_class.json"
+        with open(pcm_path, "w") as f:
+            _json.dump(pcm, f, indent=2)
+
+        logger.info(f"  Saved eval: {eval_npz.name}, {pcm_path.name}")
+        results["eval_npz_path"] = str(eval_npz)
+
+    except Exception as e:
+        logger.warning(f"  Failed to collect val predictions: {e}")
+        all_labels = None  # type: ignore[assignment]
+        all_probs = None  # type: ignore[assignment]
+        cm = None  # type: ignore[assignment]
+        pcm = None  # type: ignore[assignment]
+
+    # ── 3. Generate plots ────────────────────────────────────────────
+    try:
+        from V2_segmentation.visualization.backbone_plots import BackbonePlots
+        from V2_segmentation.visualization.training_curves import TrainingCurves
+
+        # Training curves with phase boundary lines
+        curves = TrainingCurves()
+        curves.plot_backbone_curves(backbone_name, merged_history, phase_boundaries)
+
+        # Confusion matrix, ROC curves, per-class metrics
+        bp = BackbonePlots()
+        plot_paths = bp.plot_all(
+            backbone_name=backbone_name,
+            confusion_matrix=cm,
+            all_labels=all_labels,
+            all_probs=all_probs,
+            per_class=pcm,
+            class_names=list(CLASS_NAMES),
+        )
+        results["plot_paths"] = {k: str(v) for k, v in plot_paths.items()}
+        logger.info(f"  Generated {len(plot_paths)} plots for {backbone_name}")
+
+    except Exception as e:
+        logger.warning(f"  Plot generation failed for {backbone_name}: {e}")
 
 
 def _cleanup_gpu() -> None:

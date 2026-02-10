@@ -48,7 +48,7 @@ def load_stage1_predictions(stage1_dir: Path, split: str = 'val') -> dict[str, d
     return predictions
 
 
-def soft_voting_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> np.ndarray:
+def soft_voting_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> tuple[np.ndarray, np.ndarray]:
     """
     Soft Voting: Average probabilities from all models
     
@@ -56,7 +56,7 @@ def soft_voting_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> np.nd
         predictions: Dict of predictions from each backbone
         
     Returns:
-        Final predictions (N,)
+        Tuple of (final_preds (N,), avg_probs (N, C))
     """
 
     probs_list = [pred['probabilities'] for pred in predictions.values()]
@@ -96,7 +96,7 @@ def hard_voting_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> np.nd
 def weighted_voting_ensemble(
     predictions: dict[str, dict[str, np.ndarray]],
     weights: dict[str, float]
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Weighted Voting: Weighted average of probabilities
     
@@ -105,10 +105,10 @@ def weighted_voting_ensemble(
         weights: Dict of weights for each backbone (e.g., validation accuracy)
         
     Returns:
-        Final predictions (N,)
+        Tuple of (final_preds (N,), weighted_probs (N, C))
     """
 
-    weighted_probs = None
+    weighted_probs: np.ndarray | None = None
     total_weight = 0.0
 
     for backbone_name, pred in predictions.items():
@@ -122,13 +122,16 @@ def weighted_voting_ensemble(
 
         total_weight += weight
 
-    weighted_probs /= total_weight
+    if weighted_probs is None:
+        raise ValueError("No predictions provided to weighted_voting_ensemble")
+
+    weighted_probs = weighted_probs / total_weight
     final_preds = weighted_probs.argmax(axis=1)
 
     return final_preds, weighted_probs
 
 
-def logit_averaging_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> np.ndarray:
+def logit_averaging_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> tuple[np.ndarray, np.ndarray]:
     """
     Logit Averaging: Average logits before softmax
     
@@ -136,7 +139,7 @@ def logit_averaging_ensemble(predictions: dict[str, dict[str, np.ndarray]]) -> n
         predictions: Dict of predictions from each backbone
         
     Returns:
-        Final predictions (N,)
+        Tuple of (final_preds (N,), avg_probs (N, C))
     """
 
     logits_list = [pred['logits'] for pred in predictions.values()]

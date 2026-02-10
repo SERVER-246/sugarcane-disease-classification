@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from V2_segmentation.config import ENSEMBLE_V2_DIR
 
 logger = logging.getLogger(__name__)
@@ -96,7 +98,7 @@ class EnsembleOrchestratorV2:
         return self.results
 
     def _run_stage(self, stage_id: int | str, fn: Any) -> None:
-        """Run a stage with error handling and timing."""
+        """Run a stage with error handling, timing, and eval artifact saving."""
         stage_name = f"stage_{stage_id}"
         logger.info(f"\n{'─'*40}\n  STAGE {stage_id}\n{'─'*40}")
         start = datetime.now()
@@ -106,6 +108,10 @@ class EnsembleOrchestratorV2:
             result["duration_seconds"] = (datetime.now() - start).total_seconds()
             self.results[stage_name] = result
             logger.info(f"Stage {stage_id} completed in {result['duration_seconds']:.1f}s")
+
+            # Save eval NPZ for downstream plot generation (Phase 6)
+            self._save_stage_eval_artifact(stage_name, result)
+
         except Exception as e:
             logger.error(f"Stage {stage_id} FAILED: {e}")
             self.results[stage_name] = {
@@ -113,6 +119,35 @@ class EnsembleOrchestratorV2:
                 "error": str(e),
                 "duration_seconds": (datetime.now() - start).total_seconds(),
             }
+
+    def _save_stage_eval_artifact(
+        self, stage_name: str, result: dict[str, Any],
+    ) -> None:
+        """Save stage predictions as NPZ for Phase 6 eval plots."""
+        try:
+            all_labels = result.get("all_labels")
+            all_probs = result.get("all_probs")
+            all_preds = result.get("all_preds")
+
+            # Need at least labels + (probs or preds) to produce plots
+            if all_labels is None:
+                return
+
+            eval_dir = self.output_dir / "ensemble_v2_results"
+            eval_dir.mkdir(parents=True, exist_ok=True)
+
+            save_dict: dict[str, Any] = {"all_labels": np.asarray(all_labels)}
+            if all_probs is not None:
+                save_dict["all_probs"] = np.asarray(all_probs)
+            if all_preds is not None:
+                save_dict["all_preds"] = np.asarray(all_preds)
+
+            npz_path = eval_dir / f"{stage_name}_eval.npz"
+            np.savez_compressed(str(npz_path), **save_dict)
+            logger.info(f"  Saved stage eval: {npz_path.name}")
+
+        except Exception as e:
+            logger.warning(f"  Could not save eval for {stage_name}: {e}")
 
     def _stage1(self) -> dict[str, Any]:
         from .stage1_individual_v2 import Stage1IndividualV2

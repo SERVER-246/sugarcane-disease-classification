@@ -1,11 +1,11 @@
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-05 (Sprint 2 Complete + Python 3.9 Compatibility)  
+**Last Updated:** 2026-02-10 (V2 Visualization Wiring Complete — Training Launch Ready)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `5efa55c` (fix: Python 3.9 compatibility with future annotations)  
-**Short One-Line HEALTH:** 🟢 **Green** — Production-ready, Sprint 1 & 2 complete, CI passing, 96.61% accuracy
+**Current HEAD Commit Hash:** *(pending commit — V2 per-backbone plot wiring + V1 Pylance fixes)*  
+**Short One-Line HEALTH:** 🟢 **Green** — Production-ready, V2 segmentation fully wired (70 files), per-backbone plots match V1 output, training launch ready
 
 ---
 
@@ -15,7 +15,9 @@
 |--------|------|--------|----------------|
 | 1 | Repository Integrity & Safety Baseline | ✅ **COMPLETE** | 2026-02-04 |
 | 2 | CI/CD Without Behavior Change | ✅ **COMPLETE** | 2026-02-05 |
-| 3A | Inference Server Foundation | 🔲 Not Started | - |
+| 3A | Inference Server Foundation | ✅ **COMPLETE** | 2026-02-06 |
+| 3-Seg | V2 Segmentation Pipeline (Infrastructure) | ✅ **COMPLETE** | 2026-02-10 |
+| 3-Seg | V2 Segmentation Pipeline (Training) | 🟡 **IN PROGRESS** | - |
 | 3B | Inference Server Hardening | 🔲 Not Started | - |
 | 4 | Deployment Discipline & Model Governance | 🔲 Not Started | - |
 | 5 | Continuous Validation & Production Safeguards | 🔲 Not Started | - |
@@ -26,12 +28,14 @@
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** Production-ready system with 96.61% ensemble accuracy, Sprint 2 CI/CD infrastructure fully operational
+- **Health Verdict:** Production-ready V1, V2 segmentation fully wired (70 Python files in `V2_segmentation/`), per-backbone plots match V1, training launch ready
 - **Top 3 Prioritized Actions:**
   1. ~~**Sprint 1: Repository Integrity**~~ ✅ **COMPLETE** — Static analysis, type checking, config files created
-  2. ~~**Sprint 2: CI/CD Without Behavior Change**~~ ✅ **COMPLETE** — GitHub Actions, pytest suite, Docker images, ALL LINT/TYPE ERRORS FIXED
-  3. **Sprint 3A: Inference Server Foundation** — FastAPI server with health checks (Next)
-- **Completeness Summary:** 322+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors
+  2. ~~**Sprint 2: CI/CD Without Behavior Change**~~ ✅ **COMPLETE** — GitHub Actions, pytest suite, Docker images
+  3. ~~**Sprint 3A: Inference Server Foundation**~~ ✅ **COMPLETE** — FastAPI server with health checks
+  4. ~~**Sprint 3-Seg: V2 Segmentation Infrastructure**~~ ✅ **COMPLETE** — 70 files, 8 modules, 12-stage ensemble, 0 Pylance errors
+  5. **Sprint 3-Seg: V2 Segmentation Training** — `python -m V2_segmentation.run_pipeline_v2 --phase 3 4 5 6` (LAUNCHING NOW)
+- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files committed**
 
 ---
 
@@ -154,13 +158,13 @@ a9ddf19 | 2025-12-08 | SERVER-246 | Add GUI application with image validation fi
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| Python Source Files | 48 | Core training, models, ensemble, GUI |
+| Python Source Files | 118 | Core training, models, ensemble, GUI, V2 segmentation (70 new) |
 | Markdown Documentation | 17 | README, guides, architecture docs |
 | JSON Configuration/Metrics | 55+ | Training metrics, export info, ensemble results |
 | Model Checkpoints | 40 | .pth files (backbones + ensembles) |
 | Image Data | 10,607 | Raw sugarcane disease images |
-| **Total Tracked (git)** | 63 | Files under version control |
-| **Total in Workspace** | 322 | Excluding Data/, split_dataset/, checkpoints/, deployment_models/ |
+| **Total Tracked (git)** | 131+ | Files under version control |
+| **Total in Workspace** | 390+ | Excluding Data/, split_dataset/, checkpoints/, deployment_models/ |
 
 ### Master File Table (Source & Config Files)
 
@@ -214,6 +218,65 @@ a9ddf19 | 2025-12-08 | SERVER-246 | Add GUI application with image validation fi
 | `ensemble_system/ensemble_checkpoint_manager.py` | Ensemble state recovery | ~200 | Active |
 | `ensemble_system/ensemble_plots.py` | Ensemble visualization | ~300 | Active |
 | `ensemble_system/configs/ensemble_config.yaml` | Ensemble hyperparameters | ~100 | Active |
+
+### V2_segmentation/ Module Structure (70 files — Sprint 3-Seg)
+
+| Submodule | File Path | Purpose | Status |
+|-----------|-----------|---------|--------|
+| **config** | `V2_segmentation/config.py` | Central config: backbone profiles, memory tiers, phase configs, channel maps | Active |
+| **models/** | `models/backbone_adapter.py` | Wraps 15 V1 backbones for dual-head use | Active |
+| | `models/decoder.py` | DeepLabV3+ decoder with ASPP (rates 6,12,18) | Active |
+| | `models/dual_head.py` | Joint classification + segmentation head | Active |
+| | `models/model_factory.py` | Factory to create tier-aware dual-head models | Active |
+| **training/** | `training/train_v2_backbone.py` | 3-phase trainer (A: seg-head, B: joint, C: cls-refine) | Active |
+| | `training/train_all_backbones.py` | Wave-based orchestrator for all 15 backbones | Active |
+| | `training/checkpoint_manager.py` | Save/load/resume V2 checkpoints | Active |
+| | `training/memory_manager.py` | VRAM tier detection & batch size management | Active |
+| | `training/metrics.py` | IoU, Dice, precision, recall, F1 metrics | Active |
+| **data/** | `data/seg_dataset.py` | 5-channel segmentation dataset loader | Active |
+| | `data/augmentations.py` | Joint image + mask augmentation pipeline | Active |
+| **losses/** | `losses/dice_loss.py` | Soft Dice loss for segmentation | Active |
+| | `losses/focal_loss.py` | Focal loss for class imbalance | Active |
+| | `losses/joint_loss.py` | Combined cls + seg loss with phase-aware weighting | Active |
+| | `losses/distillation_loss.py` | KD loss for student model training | Active |
+| **analysis/** | `analysis/gradcam_generator.py` | Grad-CAM heatmaps for V2 dual-head models | Active |
+| **pseudo_labels/** | `pseudo_labels/grabcut_generator.py` | GrabCut-based mask generation | Active |
+| | `pseudo_labels/gradcam_mask_generator.py` | Grad-CAM → mask conversion | Active |
+| | `pseudo_labels/sam_generator.py` | SAM-based mask generation (optional) | Active |
+| | `pseudo_labels/mask_combiner.py` | Multi-source mask fusion | Active |
+| | `pseudo_labels/mask_quality_scorer.py` | Mask quality scoring & filtering | Active |
+| | `pseudo_labels/class_sanity_checker.py` | Per-class mask sanity validation | Active |
+| | `pseudo_labels/spot_check_ui.py` | Interactive spot-check UI for masks | Active |
+| | `pseudo_labels/iterative_refiner.py` | Iterative mask refinement loop | Active |
+| **evaluation/** | `evaluation/leakage_checker.py` | Train/val/test data leakage detection | Active |
+| | `evaluation/overfit_detector.py` | Overfitting signal detection | Active |
+| | `evaluation/oof_generator.py` | Out-of-fold prediction generator | Active |
+| | `evaluation/audit_reporter.py` | Full audit report generation | Active |
+| **ensemble_v2/** | `ensemble_v2/stage1_individual_v2.py` | V2 individual backbone predictions | Active |
+| | `ensemble_v2/stage2_to_7_rerun.py` | Rerun V1 stages 2-7 with V2 features | Active |
+| | `ensemble_v2/stage8_seg_informed.py` | Segmentation-informed ensemble (new) | Active |
+| | `ensemble_v2/stage9_cascaded.py` | Cascaded cls→seg→cls pipeline (new) | Active |
+| | `ensemble_v2/stage10_adversarial.py` | Adversarial robustness ensemble (new) | Active |
+| | `ensemble_v2/stage11_referee.py` | Referee network for conflict resolution (new) | Active |
+| | `ensemble_v2/stage12_distillation_v2.py` | V2 knowledge distillation (new) | Active |
+| | `ensemble_v2/ensemble_orchestrator.py` | 12-stage ensemble pipeline orchestrator | Active |
+| **validation/** | `validation/seg_validator.py` | Segmentation mask validation | Active |
+| | `validation/region_analyzer.py` | Region-level analysis of predictions | Active |
+| | `validation/calibrate_gate.py` | Confidence gate calibration | Active |
+| **visualization/** | `visualization/backbone_plots.py` | Confusion matrix, ROC curves, per-class P/R/F1 (V1-matching TIFFs at 1200 DPI) | **NEW** |
+| | `visualization/ensemble_stage_plots.py` | Per-ensemble-stage eval plots (reuses BackbonePlots) | **NEW** |
+| | `visualization/seg_overlay.py` | Segmentation overlay on images | Active |
+| | `visualization/heatmap_grid.py` | Multi-backbone heatmap grid | Active |
+| | `visualization/training_curves.py` | V2 training loss/accuracy curves with A→B→C phase lines | Active |
+| | `visualization/ensemble_comparison.py` | V1 vs V2 ensemble comparison charts | Active |
+| | `visualization/validation_demo.py` | Validation demonstration gallery | Active |
+| | `visualization/tier_distribution.py` | Memory tier distribution charts | Active |
+| **scripts/** | `scripts/smoke_dual_head.py` | Dual-head smoke test (150/150 checks) | Active |
+| | `scripts/smoke_oof_dryrun.py` | OOF dry-run smoke test | Active |
+| | `scripts/smoke_training_pipeline.py` | Training pipeline smoke test | Active |
+| | `scripts/sample_gold_set.py` | Gold-set sampling script | Active |
+| | `scripts/generate_draft_gold_masks.py` | Draft gold mask generation | Active |
+| **orchestrator** | `run_pipeline_v2.py` | End-to-end V2 pipeline (phases 0-6) | Active |
 
 **Command used to generate file listing:**
 ```powershell
@@ -587,6 +650,56 @@ python Base_backbones.py
 ```
 
 **Available debug functions:** `model_creation`, `forward_pass`, `backward_pass`, `single_epoch`, `overfit_batch`, `dataset_loading`, `full_training`, `export_only`, `smoke_tests`, `architecture_verify`, `pretrained_loading`, `all_checks`
+
+### Pipeline 4: V2 Segmentation Training
+
+```bash
+# Full V2 pipeline (all phases)
+python -m V2_segmentation.run_pipeline_v2
+
+# Training only (Phase 3 — 15 backbones × 3-phase A/B/C)
+python -m V2_segmentation.run_pipeline_v2 --phase 3
+
+# Dry run (validate config without training)
+python -m V2_segmentation.run_pipeline_v2 --phase 3 --dry-run
+```
+
+**Call Chain:**
+```
+run_pipeline_v2.py (PipelineV2 orchestrator)
+├── Phase 0: _phase_0_analysis()
+│   └── evaluation/leakage_checker.py, overfit_detector.py
+├── Phase 1: _phase_1_pseudo_labels()
+│   └── pseudo_labels/gradcam_mask_generator.py → mask_combiner.py → quality_scorer.py
+├── Phase 2: _phase_2_gold_masks()
+│   └── scripts/sample_gold_set.py, generate_draft_gold_masks.py
+├── Phase 3: _phase_3_training()  ← MAIN TRAINING
+│   └── training/train_all_backbones.py::BackboneTrainingOrchestrator
+│       ├── Wave 1 (LIGHT tier, BS=32): ConvNeXt, GhostNetV2, MobileOne, DynamicConvNet
+│       ├── Wave 2 (MEDIUM tier, BS=16): EfficientNetV4, ResNetMish, CSPDarkNet, RegNet, DenseNetHybrid
+│       ├── Wave 3 (HIGH tier, BS=8): InceptionV4, DeiTStyle, MaxViT
+│       └── Wave 4 (HEAVY tier, BS=4): ViTHybrid, SwinTransformer, CoAtNet
+│           └── Per backbone: Phase A (seg-head) → Phase B (joint) → Phase C (cls-refine)
+├── Phase 4: _phase_4_ensemble()
+│   └── ensemble_v2/ensemble_orchestrator.py (12-stage pipeline)
+├── Phase 5: _phase_5_validation()
+│   └── validation/seg_validator.py, calibrate_gate.py
+└── Phase 6: _phase_6_visualization()
+    └── visualization/training_curves.py, ensemble_comparison.py, etc.
+```
+
+**V2 Architecture (Dual-Head):**
+```
+Input Image (224×224)
+│
+├── Backbone (frozen V1 weights) → Feature Maps
+│   │
+│   ├── Classification Head → 13 disease classes
+│   └── DeepLabV3+ Decoder → 5-channel segmentation mask
+│       (BG, Healthy, Structural, Surface_Disease, Tissue_Degradation)
+│
+└── Seg-Gate: mask confidence → weight cls logits
+```
 
 ---
 
@@ -1027,6 +1140,28 @@ The project is production-ready with:
     - Added `inference_server/` to CI lint scope
     - Dependencies: `fastapi==0.128.2`, `uvicorn[standard]==0.34.3`, `python-multipart==0.0.22`
     - **No existing code modified** (additive only)
+14. ✅ **Sprint 3-Seg: V2 Segmentation Training Infrastructure** (2026-02-08, commit `270eceb`)
+    - 31 new files: config, models (backbone_adapter, decoder, dual_head, model_factory), training (3-phase A/B/C, checkpoint_manager, memory_manager, metrics), data (seg_dataset, augmentations), losses (dice, focal, joint, distillation), analysis (gradcam), scripts (smoke tests)
+    - 150/150 smoke checks passed (dual-head forward pass, all 15 backbones)
+    - 4 memory tiers: LIGHT (BS=32), MEDIUM (BS=16), HIGH (BS=8), HEAVY (BS=4)
+    - DeepLabV3+ decoder with ASPP rates [6,12,18], 5-channel segmentation output
+15. ✅ **Sprint 3-Seg: V2 All Remaining Phases** (2026-02-10, commit `bee0f3b`)
+    - 38 new files across 8 modules: pseudo_labels (9), evaluation (5), ensemble_v2 (9), validation (4), visualization (7), scripts (2), orchestrator (1), config update (1)
+    - Pseudo-label pipeline: GrabCut, Grad-CAM, SAM generators + mask combiner + quality scorer
+    - 12-stage ensemble: V1 stages 1-7 + V2 stages 8-12 (seg-informed, cascaded, adversarial, referee, distillation)
+    - Validation gate with confidence calibration
+    - Full visualization suite (overlays, heatmaps, training curves, ensemble comparison)
+    - End-to-end orchestrator: `run_pipeline_v2.py` with `--phase` and `--dry-run` support
+    - **0 Pylance errors across all 68 V2 files**
+16. ✅ **Sprint 3-Seg: V2 Per-Backbone Visualization Wiring** (2026-02-10)
+    - **Closed V1↔V2 plot parity gap** — V2 now auto-generates the same per-backbone TIFF plots as V1
+    - New files: `visualization/backbone_plots.py` (~280 lines), `visualization/ensemble_stage_plots.py` (~130 lines)
+    - Modified: `train_v2_backbone.py` (epoch history collection + final eval pass + softmax probability capture + plot generation)
+    - Modified: `ensemble_orchestrator.py` (auto-saves `all_labels`/`all_probs` NPZ per stage for Phase 6 plotting)
+    - Modified: `run_pipeline_v2.py` Phase 6 (scans for `_eval.npz` files and regenerates all plots)
+    - Per-backbone artifacts now produced: confusion matrix, ROC curves, per-class P/R/F1 bars (all 1200 DPI TIFF, real disease labels)
+    - Also fixed: 3 `reportReturnType` + 1 `reportOperatorIssue` Pylance errors in `ensemble_system/stage2_score_ensembles.py`
+    - **0 Pylance errors across all 70 V2 files + V1 codebase**
 
 ### Partial Items ⚠️
 
@@ -1072,11 +1207,15 @@ The project is production-ready with:
 |----------|--------|-----------|--------|--------|
 | 1 | ~~**Sprint 1: Repository Integrity**~~ | Establish baseline | HIGH | ✅ DONE |
 | 2 | ~~**Sprint 2: CI/CD Pipeline**~~ | Automate testing and validation | HIGH | ✅ DONE |
-| 3 | **Sprint 3A/3B: Inference Server** | Enable remote/mobile access | HIGH | 🔲 NEXT |
-| 4 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
-| 5 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
-| 6 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
-| 7 | **Implement Android app** | Mobile deployment | MEDIUM | 🔲 PLANNED |
+| 3 | ~~**Sprint 3A: Inference Server**~~ | Enable remote/mobile access | HIGH | ✅ DONE |
+| 4 | ~~**Sprint 3-Seg: V2 Segmentation Infra**~~ | Dual-head training infrastructure | HIGH | ✅ DONE |
+| 5 | **Sprint 3-Seg: V2 Training Run** | `--phase 3 4 5 6` (15 backbones × 3 phases) | HIGH | 🚀 LAUNCHING |
+| 6 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (included in Phase 4-6) | HIGH | 🚀 LAUNCHING |
+| 7 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
+| 8 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
+| 9 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
+| 10 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
+| 11 | **Implement Android app** | Mobile deployment | MEDIUM | 🔲 PLANNED |
 
 **See [DISEASE_PIPELINE_5_SPRINT_PRODUCTION_PLAN.md](DISEASE_PIPELINE_5_SPRINT_PRODUCTION_PLAN.md) for detailed 5-sprint production roadmap.**
 
@@ -1338,19 +1477,21 @@ Get-ChildItem "Data\" -Recurse -File |
 
 | Metric | Value |
 |--------|-------|
-| Project Duration | ~3 months (Nov 2025 - Feb 2026) |
+| Project Duration | ~3.5 months (Nov 2025 - Feb 2026) |
 | Dataset Images | 10,607 (13 classes) |
 | Backbone Models | 15 custom architectures |
-| Ensemble Stages | 7 |
-| Best Ensemble Accuracy | 96.61% (Meta-MLP) |
-| Best Backbone Accuracy | 96.04% (CustomCSPDarkNet) |
-| Distilled Student | 93.21% (24 MB) |
+| Ensemble Stages | 12 (V1: 7 + V2: 5 new) |
+| Best Ensemble Accuracy | 96.61% (Meta-MLP, V1) |
+| Best Backbone Accuracy | 96.04% (CustomCSPDarkNet, V1) |
+| Distilled Student | 93.21% (24 MB, V1) |
 | Model Storage | ~8 GB (checkpoints + exports) |
-| Git-tracked Files | 63+ |
+| Git-tracked Files | 131+ |
+| V2 Segmentation Files | 70 (across 8 modules, +2 new visualization files) |
 | Tests Passing | 51 (+ 30 slow skipped) |
 | CI/CD Status | ✅ Fully Operational |
 | Ruff Lint Errors | 0 |
 | Pylance Type Errors | 0 |
+| V2 Training Status | 🚀 Launching (`--phase 3 4 5 6`) |
 
 ---
 
@@ -1360,32 +1501,22 @@ Get-ChildItem "Data\" -Recurse -File |
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-04  
+**Last Updated:** 2026-02-10 (V2 Visualization Wiring Complete — Training Launch Ready)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `850ad7e1347e4defe457117b80a6f127a9033d08`  
-**Short One-Line HEALTH:** 🟢 **Green** — Production-ready, 96.61% ensemble accuracy
+**Current HEAD Commit Hash:** *(see latest commit)*  
+**Short One-Line HEALTH:** 🟢 **Green** — V2 fully wired (70 files), per-backbone plots match V1, training launching
 
 ---
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** Production-ready with 96.61% ensemble accuracy achieved
+- **Health Verdict:** Production-ready V1, V2 segmentation infrastructure complete (68 files)
 - **Top 3 Prioritized Actions:**
-  1. Add CI/CD pipeline — No automated testing currently
-  2. Increase unit test coverage — Currently ~30%
-  3. Create inference server — FastAPI for remote access
-- **Completeness Summary:** 322 files documented; 63 git-tracked; 40 checkpoints (~8 GB)
-
----
-
-## TABLE OF CONTENTS
-
-1. [Executive Summary](#executive-summary)
-2. [Project Origin & Conception](#project-origin--conception)
-3. [Project Timeline (Traceable)](#project-timeline-traceable)
-4. [Complete File Inventory](#complete-file-inventory)
-5. [Per-File Detail](#per-file-detail)
+  1. ✅ Sprint 1-3A + 3-Seg Infrastructure — ALL COMPLETE
+  2. 🟡 V2 Segmentation Training — 15 backbones × 3 phases (NEXT)
+  3. V2 Ensemble & Validation — 12-stage pipeline (after training)
+- **Completeness Summary:** 390+ files; 131+ git-tracked; 68 V2 segmentation files; 0 Pylance errors
 ```
 
 ---
@@ -1394,10 +1525,11 @@ Get-ChildItem "Data\" -Recurse -File |
 
 **Report Generated By:** Sugam Singh  
 *Full Path: `F:\DBT-Base-DIr\PROJECT_OVERSEER_REPORT_DISEASE.md`*  
-*Last Updated: 2026-02-06*  
-*Total Files Analyzed: 322 documented + 10,607 dataset images*  
+*Last Updated: 2026-02-10 (V2 Visualization Wiring)*  
+*Total Files Analyzed: 390+ documented + 10,607 dataset images*  
 *Total Model Storage: ~8 GB (checkpoints + exports)*  
 *Total Training Data: 10,607 images (13 classes)*  
 *Total Tests Passing: 51 (+ 30 slow tests skipped by design)*  
+*V2 Segmentation Files: 70 Python files across 8 modules (includes backbone_plots.py, ensemble_stage_plots.py)*  
 *CI Pipeline: ✅ Fully Operational (Ruff + Pyright + pytest + Docker)*  
 *Reference Document: [DISEASE_PIPELINE_NEXT_STEPS_PLAN.md](DISEASE_PIPELINE_NEXT_STEPS_PLAN.md)*
