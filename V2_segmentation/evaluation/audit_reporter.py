@@ -169,4 +169,5 @@ class AuditReporter:
             lines.append("")
 
         lines.append("=" * 60)
-        path.write_text("\n".join(lines))
+        # Use UTF-8 encoding to support Unicode characters like ✅ ✗
+        path.write_text("\n".join(lines), encoding="utf-8")

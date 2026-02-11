@@ -61,6 +61,17 @@ plots_metrics/
 ensembles/
 smoke_checks/
 
+# V2 Pipeline Outputs (generated at runtime)
+gold_labels/
+pseudo_labels/
+checkpoints_v2/
+plots_metrics_v2/
+evaluation/
+pipeline_v2_report.json
+pipeline_v2_run.log
+v2_pipeline.log*
+v2_pipeline_errors.log*
+
 # Dataset (too large for git - users should provide their own)
 Data/
 split_dataset/

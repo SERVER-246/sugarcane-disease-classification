@@ -29,26 +29,78 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Lazy import to avoid circular dependency with Base_backbones.py
+# Lazy imports to avoid circular dependency with Base_backbones.py
+_backbone_classes: dict[str, type] | None = None
 _backbone_factory = None
 
 
-def _get_backbone_factory():
-    """Lazy-import ``create_custom_backbone`` from Base_backbones.py."""
-    global _backbone_factory
-    if _backbone_factory is not None:
-        return _backbone_factory
+def _get_backbone_classes() -> dict[str, type]:
+    """Lazy-import backbone CLASSES (not factory) from Base_backbones.py.
+
+    This returns the raw nn.Module classes, allowing minimal instantiation
+    without the heavy verification that create_custom_backbone performs.
+    """
+    global _backbone_classes
+    if _backbone_classes is not None:
+        return _backbone_classes
 
     import sys
-
-    # Base_backbones.py lives at the project root
     from V2_segmentation.config import BASE_DIR
 
     bb_path = BASE_DIR / "Base_backbones.py"
     if not bb_path.exists():
         raise FileNotFoundError(f"Cannot find Base_backbones.py at {bb_path}")
 
-    # The safest approach: add parent dir to sys.path and import directly.
+    parent = str(BASE_DIR)
+    if parent not in sys.path:
+        sys.path.insert(0, parent)
+
+    # Import individual backbone classes directly
+    from Base_backbones import (  # type: ignore
+        CustomConvNeXt, CustomEfficientNetV4, CustomGhostNetV2,
+        CustomResNetMish, CustomCSPDarkNet, CustomInceptionV4,
+        CustomViTHybrid, CustomSwinTransformer, CustomCoAtNet,
+        CustomRegNet, CustomDenseNetHybrid, CustomDeiTStyle,
+        CustomMaxViT, CustomMobileOne, CustomDynamicConvNet,
+    )
+
+    _backbone_classes = {
+        "CustomConvNeXt": CustomConvNeXt,
+        "CustomEfficientNetV4": CustomEfficientNetV4,
+        "CustomGhostNetV2": CustomGhostNetV2,
+        "CustomResNetMish": CustomResNetMish,
+        "CustomCSPDarkNet": CustomCSPDarkNet,
+        "CustomInceptionV4": CustomInceptionV4,
+        "CustomViTHybrid": CustomViTHybrid,
+        "CustomSwinTransformer": CustomSwinTransformer,
+        "CustomCoAtNet": CustomCoAtNet,
+        "CustomRegNet": CustomRegNet,
+        "CustomDenseNetHybrid": CustomDenseNetHybrid,
+        "CustomDeiTStyle": CustomDeiTStyle,
+        "CustomMaxViT": CustomMaxViT,
+        "CustomMobileOne": CustomMobileOne,
+        "CustomDynamicConvNet": CustomDynamicConvNet,
+    }
+    return _backbone_classes
+
+
+def _get_backbone_factory():
+    """Lazy-import ``create_custom_backbone`` from Base_backbones.py.
+
+    NOTE: This factory runs expensive architecture verification.
+    For lightweight inference-only use, prefer create_v1_backbone_minimal().
+    """
+    global _backbone_factory
+    if _backbone_factory is not None:
+        return _backbone_factory
+
+    import sys
+    from V2_segmentation.config import BASE_DIR
+
+    bb_path = BASE_DIR / "Base_backbones.py"
+    if not bb_path.exists():
+        raise FileNotFoundError(f"Cannot find Base_backbones.py at {bb_path}")
+
     parent = str(BASE_DIR)
     if parent not in sys.path:
         sys.path.insert(0, parent)
@@ -63,7 +115,38 @@ def _get_backbone_factory():
 # ============================================================================
 
 def create_v1_backbone(name: str, num_classes: int = 13) -> nn.Module:
-    """Instantiate a V1 backbone (no weights loaded).
+    """Instantiate a V1 backbone MINIMALLY (no verification, no pretrained load).
+
+    This is the FAST path for inference-only use cases like GradCAM generation.
+    It directly instantiates the backbone class without the expensive
+    architecture verification that create_custom_backbone performs.
+
+    Parameters
+    ----------
+    name : str
+        Backbone name (e.g. ``"CustomEfficientNetV4"``).
+    num_classes : int
+        Number of output classes.
+
+    Returns
+    -------
+    nn.Module
+    """
+    classes = _get_backbone_classes()
+    if name not in classes:
+        raise ValueError(f"Unknown backbone: {name}. Available: {list(classes.keys())}")
+
+    model = classes[name](_num_classes=num_classes)
+    logger.debug(f"Created V1 backbone (minimal): {name} with {num_classes} classes")
+    return model
+
+
+def create_v1_backbone_verified(name: str, num_classes: int = 13) -> nn.Module:
+    """Instantiate a V1 backbone WITH full verification.
+
+    This uses the original create_custom_backbone from Base_backbones.py
+    which runs architecture verification, pretrained loading, etc.
+    Use this for training or when you need verified model correctness.
 
     Parameters
     ----------
@@ -78,7 +161,7 @@ def create_v1_backbone(name: str, num_classes: int = 13) -> nn.Module:
     """
     factory = _get_backbone_factory()
     model = factory(name, num_classes)
-    logger.info(f"Created V1 backbone: {name} with {num_classes} classes")
+    logger.info(f"Created V1 backbone (verified): {name} with {num_classes} classes")
     return model
 
 

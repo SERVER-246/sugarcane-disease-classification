@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from tqdm import tqdm
 
 from V2_segmentation.config import (
     NUM_SEG_CHANNELS,
@@ -197,36 +198,43 @@ class ClassSanityChecker:
             "per_class_violations": {},
         }
 
+        # Count total masks for progress bar
+        all_masks = []
         for class_dir in sorted(masks_dir.iterdir()):
             if not class_dir.is_dir():
                 continue
-            class_name = class_dir.name
-            class_violations = 0
-
             for mask_path in sorted(class_dir.glob("*_mask.npy")):
-                stem = mask_path.stem.replace("_mask", "")
-                stats["total"] += 1
+                all_masks.append((class_dir.name, mask_path))
 
-                mask_5ch = np.load(str(mask_path))
+        # Process with progress bar
+        pbar = tqdm(all_masks, desc="Sanity check", unit="mask")
+        for class_name, mask_path in pbar:
+            stem = mask_path.stem.replace("_mask", "")
+            pbar.set_postfix({"class": class_name[:12], "file": stem[:15]})
 
-                # Read current tier
-                tier_path = tier_dir / class_name / f"{stem}_tier.txt"
-                current_tier = "B"  # default if missing
-                if tier_path.exists():
-                    current_tier = tier_path.read_text().strip()
+            if class_name not in stats["per_class_violations"]:
+                stats["per_class_violations"][class_name] = 0
 
-                new_tier, violations = self.check(mask_5ch, class_name, current_tier)
+            stats["total"] += 1
 
-                if violations:
-                    stats["violations"] += 1
-                    class_violations += 1
+            mask_5ch = np.load(str(mask_path))
 
-                if new_tier != current_tier:
-                    stats["downgrades"] += 1
-                    tier_path.parent.mkdir(parents=True, exist_ok=True)
-                    tier_path.write_text(new_tier)
+            # Read current tier
+            tier_path = tier_dir / class_name / f"{stem}_tier.txt"
+            current_tier = "B"  # default if missing
+            if tier_path.exists():
+                current_tier = tier_path.read_text().strip()
 
-            stats["per_class_violations"][class_name] = class_violations
+            new_tier, violations = self.check(mask_5ch, class_name, current_tier)
+
+            if violations:
+                stats["violations"] += 1
+                stats["per_class_violations"][class_name] += 1
+
+            if new_tier != current_tier:
+                stats["downgrades"] += 1
+                tier_path.parent.mkdir(parents=True, exist_ok=True)
+                tier_path.write_text(new_tier)
 
         logger.info(
             f"Sanity check: {stats['violations']}/{stats['total']} masks had violations, "

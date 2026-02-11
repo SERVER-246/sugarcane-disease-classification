@@ -9,6 +9,7 @@ metric tracking, and comprehensive reporting.
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 from datetime import datetime
@@ -16,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 
 from V2_segmentation.config import ENSEMBLE_V2_DIR
 
@@ -101,6 +103,10 @@ class EnsembleOrchestratorV2:
         """Run a stage with error handling, timing, and eval artifact saving."""
         stage_name = f"stage_{stage_id}"
         logger.info(f"\n{'─'*40}\n  STAGE {stage_id}\n{'─'*40}")
+
+        # GPU cleanup BEFORE stage to ensure max headroom
+        self._gpu_cleanup()
+
         start = datetime.now()
 
         try:
@@ -119,6 +125,16 @@ class EnsembleOrchestratorV2:
                 "error": str(e),
                 "duration_seconds": (datetime.now() - start).total_seconds(),
             }
+        finally:
+            # GPU cleanup AFTER stage to free memory for next stage
+            self._gpu_cleanup()
+
+    def _gpu_cleanup(self) -> None:
+        """Full GPU cleanup between stages to prevent OOM."""
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
 
     def _save_stage_eval_artifact(
         self, stage_name: str, result: dict[str, Any],

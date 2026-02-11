@@ -22,6 +22,7 @@ from typing import Any
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from V2_segmentation.config import (
     DISEASE_CHANNEL_MAP, FUSION_WEIGHTS, IMG_SIZE,
@@ -218,48 +219,56 @@ class MaskCombiner:
             "sam_available": sam_dir is not None,
         }
 
+        # Count total masks for progress bar
+        all_masks = []
         for class_dir in sorted(grabcut_dir.iterdir()):
             if not class_dir.is_dir():
                 continue
-            class_name = class_dir.name
+            for gc_path in sorted(class_dir.glob("*_grabcut.npy")):
+                all_masks.append((class_dir.name, gc_path))
+
+        # Process with progress bar
+        pbar = tqdm(all_masks, desc="Combining masks", unit="mask")
+        for class_name, gc_path in pbar:
+            stem = gc_path.stem.replace("_grabcut", "")
+            pbar.set_postfix({"class": class_name[:12], "file": stem[:15]})
+
             mask_out = output_dir / class_name
             mask_out.mkdir(parents=True, exist_ok=True)
 
-            for gc_path in sorted(class_dir.glob("*_grabcut.npy")):
-                stem = gc_path.stem.replace("_grabcut", "")
-                stats["total"] += 1
+            stats["total"] += 1
 
-                try:
-                    # Load GrabCut mask
-                    gc_mask = np.load(str(gc_path))
+            try:
+                # Load GrabCut mask
+                gc_mask = np.load(str(gc_path))
 
-                    # Load GradCAM mask
-                    grad_path = gradcam_dir / class_name / f"{stem}_gradcam_mask.npy"
-                    if not grad_path.exists():
-                        grad_path = gradcam_dir / class_name / f"{stem}_gradcam.npy"
-                    grad_mask = np.load(str(grad_path)) if grad_path.exists() else \
-                        np.zeros_like(gc_mask)
+                # Load GradCAM mask
+                grad_path = gradcam_dir / class_name / f"{stem}_gradcam_mask.npy"
+                if not grad_path.exists():
+                    grad_path = gradcam_dir / class_name / f"{stem}_gradcam.npy"
+                grad_mask = np.load(str(grad_path)) if grad_path.exists() else \
+                    np.zeros_like(gc_mask)
 
-                    # Load SAM mask (optional)
-                    sam_mask = None
-                    if sam_dir is not None:
-                        sam_path = sam_dir / class_name / f"{stem}_sam.npy"
-                        if sam_path.exists():
-                            sam_mask = np.load(str(sam_path))
+                # Load SAM mask (optional)
+                sam_mask = None
+                if sam_dir is not None:
+                    sam_path = sam_dir / class_name / f"{stem}_sam.npy"
+                    if sam_path.exists():
+                        sam_mask = np.load(str(sam_path))
 
-                    # Combine
-                    mask_5ch, confidence = self.combine(
-                        gc_mask, grad_mask, sam_mask, class_name
-                    )
+                # Combine
+                mask_5ch, confidence = self.combine(
+                    gc_mask, grad_mask, sam_mask, class_name
+                )
 
-                    # Save
-                    np.save(str(mask_out / f"{stem}_mask.npy"), mask_5ch)
-                    np.save(str(mask_out / f"{stem}_conf.npy"), confidence)
-                    stats["success"] += 1
+                # Save
+                np.save(str(mask_out / f"{stem}_mask.npy"), mask_5ch)
+                np.save(str(mask_out / f"{stem}_conf.npy"), confidence)
+                stats["success"] += 1
 
-                except Exception as e:
-                    logger.error(f"Combine failed for {stem} ({class_name}): {e}")
-                    stats["failed"] += 1
+            except Exception as e:
+                logger.error(f"Combine failed for {stem} ({class_name}): {e}")
+                stats["failed"] += 1
 
         logger.info(
             f"Mask combination ({split_name}): "

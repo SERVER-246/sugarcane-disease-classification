@@ -26,6 +26,7 @@ from torch import amp  # type: ignore[attr-defined]
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, LinearLR, SequentialLR
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from V2_segmentation.config import (
     AMP_ENABLED,
@@ -132,7 +133,8 @@ def train_one_epoch(
 
     sample_losses: list[float] = []
 
-    for batch_idx, batch in enumerate(loader):
+    pbar = tqdm(enumerate(loader), total=len(loader), desc="Training", leave=False)
+    for batch_idx, batch in pbar:
         images = batch["image"].to(DEVICE, non_blocking=True)
         labels = batch["label"].to(DEVICE, non_blocking=True)
         masks = batch["mask"].to(DEVICE, non_blocking=True)
@@ -204,7 +206,8 @@ def validate_one_epoch(
     model.eval()
     tracker.reset()
 
-    for batch in loader:
+    pbar = tqdm(loader, desc="Validating", leave=False)
+    for batch in pbar:
         images = batch["image"].to(DEVICE, non_blocking=True)
         labels = batch["label"].to(DEVICE, non_blocking=True)
         masks = batch["mask"].to(DEVICE, non_blocking=True)

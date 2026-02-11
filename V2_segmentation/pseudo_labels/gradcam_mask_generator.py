@@ -22,6 +22,7 @@ from typing import Any
 import cv2
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from PIL import Image
 from torchvision.transforms import functional as TF
@@ -113,24 +114,42 @@ class GradCAMMaskGenerator:
         if ckpt_path is None:
             return np.zeros((IMG_SIZE, IMG_SIZE), dtype=np.float32)
 
-        # Load model
-        model = create_v1_backbone(backbone_name, NUM_CLASSES)
-        load_v1_weights(model, ckpt_path, strict=False)
-        model.to(self.device).eval()
+        model = None
+        generator = None
+        img_tensor = None
+        heatmap = None
 
-        # Generate GradCAM
-        generator = GradCAMGenerator(model, backbone_name, self.device)
         try:
+            # Load model on CPU first, then move to GPU
+            model = create_v1_backbone(backbone_name, NUM_CLASSES)
+            load_v1_weights(model, ckpt_path, strict=False, map_location="cpu")
+            model.to(self.device).eval()
+
+            # Generate GradCAM
+            generator = GradCAMGenerator(model, backbone_name, self.device)
             img_tensor = _preprocess_image(image_path).to(self.device)
             heatmap = generator.generate(img_tensor, target_class=target_class)
+
+            # Ensure heatmap is on CPU as numpy before cleanup
+            if isinstance(heatmap, torch.Tensor):
+                heatmap = heatmap.cpu().numpy()
+
+            return heatmap
+
         finally:
-            generator.cleanup()
-            del model
+            # Aggressive cleanup - order matters!
+            if generator is not None:
+                generator.cleanup()
+            if img_tensor is not None:
+                del img_tensor
+            if model is not None:
+                # Move model to CPU before deleting to free GPU memory
+                model.cpu()
+                del model
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                torch.cuda.synchronize()
             gc.collect()
-
-        return heatmap
 
     def generate_ensemble(
         self,
@@ -142,6 +161,11 @@ class GradCAMMaskGenerator:
         Loads one backbone at a time to stay within VRAM budget.
 
         Returns (H, W) float32 ensemble heatmap in [0, 1].
+
+        Raises
+        ------
+        RuntimeError
+            If no backbones successfully generate a heatmap.
         """
         heatmaps: list[np.ndarray] = []
 
@@ -150,7 +174,9 @@ class GradCAMMaskGenerator:
                 hm = self.generate_single_backbone(
                     image_path, backbone_name, target_class
                 )
-                heatmaps.append(hm)
+                # Only count non-zero heatmaps as success
+                if hm.max() > 0:
+                    heatmaps.append(hm)
             except Exception as e:
                 logger.warning(
                     f"GradCAM failed for {backbone_name} on {image_path}: {e}"
@@ -158,8 +184,11 @@ class GradCAMMaskGenerator:
                 continue
 
         if not heatmaps:
-            logger.error(f"No GradCAM heatmaps generated for {image_path}")
-            return np.zeros((IMG_SIZE, IMG_SIZE), dtype=np.float32)
+            # Raise instead of silently returning zeros
+            raise RuntimeError(
+                f"No GradCAM heatmaps generated for {image_path} "
+                f"(tried {len(self._available_backbones)} backbones)"
+            )
 
         # Pixel-wise mean across backbones
         ensemble = np.mean(heatmaps, axis=0)
@@ -209,27 +238,42 @@ class GradCAMMaskGenerator:
 
         stats: dict[str, Any] = {"total": 0, "success": 0, "failed": 0}
 
+        # Count total images for progress bar
+        all_images = []
         for class_dir in sorted(split_dir.iterdir()):
             if not class_dir.is_dir():
                 continue
-            class_name = class_dir.name
+            for img_path in sorted(class_dir.iterdir()):
+                if img_path.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp"):
+                    all_images.append((class_dir.name, img_path))
+
+        # Process with progress bar
+        n_backbones = len(self._available_backbones)
+        pbar = tqdm(all_images, desc=f"GradCAM ({n_backbones} backbones)", unit="img")
+        cleanup_interval = 50  # Periodic GPU cleanup every N images
+        
+        for idx, (class_name, img_path) in enumerate(pbar):
+            pbar.set_postfix({"class": class_name[:12], "file": img_path.stem[:15]})
+
             class_out = output_dir / class_name
             class_out.mkdir(parents=True, exist_ok=True)
 
-            for img_path in sorted(class_dir.iterdir()):
-                if img_path.suffix.lower() not in (".jpg", ".jpeg", ".png", ".bmp"):
-                    continue
-
-                stats["total"] += 1
-                try:
-                    heatmap = self.generate_ensemble(img_path)
-                    mask = (heatmap >= self.heatmap_threshold).astype(np.float32)
-                    np.save(str(class_out / f"{img_path.stem}_gradcam.npy"), heatmap)
-                    np.save(str(class_out / f"{img_path.stem}_gradcam_mask.npy"), mask)
-                    stats["success"] += 1
-                except Exception as e:
-                    logger.error(f"Ensemble GradCAM failed for {img_path}: {e}")
-                    stats["failed"] += 1
+            stats["total"] += 1
+            try:
+                heatmap = self.generate_ensemble(img_path)
+                mask = (heatmap >= self.heatmap_threshold).astype(np.float32)
+                np.save(str(class_out / f"{img_path.stem}_gradcam.npy"), heatmap)
+                np.save(str(class_out / f"{img_path.stem}_gradcam_mask.npy"), mask)
+                stats["success"] += 1
+            except Exception as e:
+                logger.error(f"Ensemble GradCAM failed for {img_path}: {e}")
+                stats["failed"] += 1
+            
+            # Periodic aggressive GPU cleanup to prevent memory accumulation
+            if (idx + 1) % cleanup_interval == 0 and torch.cuda.is_available():
+                gc.collect()
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
 
         if max_backbones is not None:
             pass  # _available_backbones already restored above

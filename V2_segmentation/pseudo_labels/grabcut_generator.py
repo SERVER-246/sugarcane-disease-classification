@@ -19,7 +19,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-
+from tqdm import tqdm
 
 from V2_segmentation.config import IMG_SIZE
 
@@ -196,30 +196,33 @@ class GrabCutGenerator:
         output_dir.mkdir(parents=True, exist_ok=True)
         stats: dict[str, Any] = {"total": 0, "success": 0, "failed": 0, "per_class": {}}
 
+        # Count total images for progress bar
+        all_images = []
         for class_dir in sorted(split_dir.iterdir()):
             if not class_dir.is_dir():
                 continue
-            class_name = class_dir.name
+            for img_path in sorted(class_dir.iterdir()):
+                if img_path.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp"):
+                    all_images.append((class_dir.name, img_path))
+
+        # Process with progress bar
+        pbar = tqdm(all_images, desc="GrabCut masks", unit="img")
+        for class_name, img_path in pbar:
+            pbar.set_postfix({"class": class_name[:12], "file": img_path.stem[:15]})
+
             class_out = output_dir / class_name
             class_out.mkdir(parents=True, exist_ok=True)
-            class_count = 0
 
-            for img_path in sorted(class_dir.iterdir()):
-                if img_path.suffix.lower() not in (".jpg", ".jpeg", ".png", ".bmp"):
-                    continue
-
-                stats["total"] += 1
-                try:
-                    mask = self.generate(img_path)
-                    out_path = class_out / f"{img_path.stem}_grabcut.npy"
-                    np.save(str(out_path), mask)
-                    stats["success"] += 1
-                    class_count += 1
-                except Exception as e:
-                    logger.error(f"GrabCut failed for {img_path}: {e}")
-                    stats["failed"] += 1
-
-            stats["per_class"][class_name] = class_count
+            stats["total"] += 1
+            try:
+                mask = self.generate(img_path)
+                out_path = class_out / f"{img_path.stem}_grabcut.npy"
+                np.save(str(out_path), mask)
+                stats["success"] += 1
+                stats["per_class"][class_name] = stats["per_class"].get(class_name, 0) + 1
+            except Exception as e:
+                logger.error(f"GrabCut failed for {img_path}: {e}")
+                stats["failed"] += 1
 
         logger.info(
             f"GrabCut generation complete: "

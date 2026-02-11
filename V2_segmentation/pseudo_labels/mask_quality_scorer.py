@@ -24,6 +24,7 @@ from typing import Any
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from V2_segmentation.config import (
     NUM_SEG_CHANNELS, TIER_A_THRESHOLD, TIER_B_THRESHOLD,
@@ -199,41 +200,49 @@ class MaskQualityScorer:
         tier_counts = {"A": 0, "B": 0, "C": 0}
         per_class: dict[str, dict[str, int]] = {}
 
+        # Count total masks for progress bar
+        all_masks = []
         for class_dir in sorted(masks_dir.iterdir()):
             if not class_dir.is_dir():
                 continue
-            class_name = class_dir.name
-            per_class[class_name] = {"A": 0, "B": 0, "C": 0}
-
             for mask_path in sorted(class_dir.glob("*_mask.npy")):
-                stem = mask_path.stem.replace("_mask", "")
+                all_masks.append((class_dir.name, mask_path))
 
-                mask_5ch = np.load(str(mask_path))
+        # Process with progress bar
+        pbar = tqdm(all_masks, desc="Quality scoring", unit="mask")
+        for class_name, mask_path in pbar:
+            stem = mask_path.stem.replace("_mask", "")
+            pbar.set_postfix({"class": class_name[:12], "file": stem[:15]})
 
-                # Load or generate default confidence
-                conf_path = None
-                if confidence_dir is not None:
-                    conf_path = confidence_dir / class_name / f"{stem}_conf.npy"
-                if conf_path is not None and conf_path.exists():
-                    confidence = np.load(str(conf_path))
-                else:
-                    # Default: use mask channel max as proxy
-                    confidence = mask_5ch.max(axis=2)
+            if class_name not in per_class:
+                per_class[class_name] = {"A": 0, "B": 0, "C": 0}
 
-                result = self.score(mask_5ch, confidence)
-                result["class"] = class_name
-                result["stem"] = stem
-                all_scores.append(result)
+            mask_5ch = np.load(str(mask_path))
 
-                tier = result["tier"]
-                tier_counts[tier] += 1
-                per_class[class_name][tier] += 1
+            # Load or generate default confidence
+            conf_path = None
+            if confidence_dir is not None:
+                conf_path = confidence_dir / class_name / f"{stem}_conf.npy"
+            if conf_path is not None and conf_path.exists():
+                confidence = np.load(str(conf_path))
+            else:
+                # Default: use mask channel max as proxy
+                confidence = mask_5ch.max(axis=2)
 
-                # Save tier file
-                if output_dir is not None:
-                    tier_dir = output_dir / class_name
-                    tier_dir.mkdir(parents=True, exist_ok=True)
-                    (tier_dir / f"{stem}_tier.txt").write_text(tier)
+            result = self.score(mask_5ch, confidence)
+            result["class"] = class_name
+            result["stem"] = stem
+            all_scores.append(result)
+
+            tier = result["tier"]
+            tier_counts[tier] += 1
+            per_class[class_name][tier] += 1
+
+            # Save tier file
+            if output_dir is not None:
+                tier_dir = output_dir / class_name
+                tier_dir.mkdir(parents=True, exist_ok=True)
+                (tier_dir / f"{stem}_tier.txt").write_text(tier)
 
         total = sum(tier_counts.values())
 

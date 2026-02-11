@@ -43,12 +43,42 @@ logger = logging.getLogger(__name__)
 
 
 def setup_logging(verbose: bool = False) -> None:
+    from logging.handlers import RotatingFileHandler
+
     level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    # Console handler (stderr)
+    console = logging.StreamHandler()
+    console.setLevel(level)
+    console.setFormatter(fmt)
+    root.addHandler(console)
+
+    # File handler — V2 pipeline log with rotation (10 MB × 3 backups)
+    log_file = BASE_DIR / "v2_pipeline.log"
+    fh = RotatingFileHandler(
+        log_file, maxBytes=10 * 1024 * 1024, backupCount=3,
+    )
+    fh.setLevel(level)
+    fh.setFormatter(fmt)
+    root.addHandler(fh)
+
+    # Separate error log
+    err_file = BASE_DIR / "v2_pipeline_errors.log"
+    efh = RotatingFileHandler(
+        err_file, maxBytes=5 * 1024 * 1024, backupCount=2,
+    )
+    efh.setLevel(logging.ERROR)
+    efh.setFormatter(fmt)
+    root.addHandler(efh)
+
+    logging.getLogger(__name__).info(f"V2 log file: {log_file}")
 
 
 class PipelineV2:
@@ -144,7 +174,11 @@ class PipelineV2:
                 gen = GradCAMGenerator(model, bk_name)
                 generated.append(bk_name)
                 gen.cleanup()
-                del model
+                del model, gen
+                import gc
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
             except Exception as e:
                 logger.warning(f"GradCAM failed for {bk_name}: {e}")
 

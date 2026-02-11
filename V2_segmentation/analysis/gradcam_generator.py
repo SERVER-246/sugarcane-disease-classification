@@ -74,9 +74,13 @@ class GradCAMGenerator:
         self._handles = [h1, h2]
 
     def cleanup(self) -> None:
+        """Remove hooks and clear cached tensors to free GPU memory."""
         for h in self._handles:
             h.remove()
         self._handles.clear()
+        # Clear cached tensors to free GPU memory
+        self._activations = None
+        self._gradients = None
 
     def _ensure_spatial(self, tensor: torch.Tensor) -> torch.Tensor:
         """Reshape (B, N, C) → (B, C, H, W) if needed."""
