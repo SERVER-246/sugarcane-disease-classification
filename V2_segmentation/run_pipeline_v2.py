@@ -461,7 +461,7 @@ Examples:
     for phase_key, info in results.items():
         status = info.get("status", "unknown")
         elapsed = info.get("elapsed_sec", 0)
-        emoji = "✓" if status == "success" else "✗"
+        emoji = "[OK]" if status == "success" else "[FAIL]"
         print(f"  {emoji} {phase_key}: {status} ({elapsed}s)")
     print("=" * 60)
 

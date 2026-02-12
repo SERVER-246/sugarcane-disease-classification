@@ -110,15 +110,15 @@ def smoke_test_backbone(backbone_name: str, device: torch.device = DEVICE) -> di
         assert seg_shape == expected_seg, (
             f"seg_logits shape mismatch: {seg_shape} != {expected_seg}"
         )
-        logger.info(f"  ✓ cls_logits: {cls_shape}")
-        logger.info(f"  ✓ seg_logits: {seg_shape}")
+        logger.info(f"  [OK] cls_logits: {cls_shape}")
+        logger.info(f"  [OK] seg_logits: {seg_shape}")
 
         # 3. Check for NaN/Inf
         assert not torch.isnan(outputs["cls_logits"]).any(), "NaN in cls_logits!"
         assert not torch.isnan(outputs["seg_logits"]).any(), "NaN in seg_logits!"
         assert not torch.isinf(outputs["cls_logits"]).any(), "Inf in cls_logits!"
         assert not torch.isinf(outputs["seg_logits"]).any(), "Inf in seg_logits!"
-        logger.info(f"  ✓ No NaN/Inf in outputs")
+        logger.info(f"  [OK] No NaN/Inf in outputs")
 
         # 4. Backward pass (verify gradients flow through both heads)
         logger.info(f"  Backward pass...")
@@ -154,7 +154,7 @@ def smoke_test_backbone(backbone_name: str, device: torch.device = DEVICE) -> di
         )
         assert has_backbone_grad, "No gradients in backbone!"
         assert has_seg_grad, "No gradients in seg decoder!"
-        logger.info(f"  ✓ Gradients flow to backbone and seg decoder")
+        logger.info(f"  [OK] Gradients flow to backbone and seg decoder")
         result["gradients_ok"] = True
 
         # 5. VRAM usage
@@ -173,7 +173,7 @@ def smoke_test_backbone(backbone_name: str, device: torch.device = DEVICE) -> di
         assert trainable <= result["seg_params"], (
             f"More trainable params than seg decoder: {trainable} > {result['seg_params']}"
         )
-        logger.info(f"  ✓ Freeze/unfreeze works correctly")
+        logger.info(f"  [OK] Freeze/unfreeze works correctly")
 
         # Cleanup
         model.cleanup()
@@ -182,12 +182,12 @@ def smoke_test_backbone(backbone_name: str, device: torch.device = DEVICE) -> di
             torch.cuda.empty_cache()
 
         result["status"] = "PASS"
-        logger.info(f"  ✅ {backbone_name} PASSED")
+        logger.info(f"  [PASS] {backbone_name} PASSED")
 
     except Exception as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
-        logger.error(f"  ❌ {backbone_name} FAILED: {e}")
+        logger.error(f"  [FAIL] {backbone_name} FAILED: {e}")
         import traceback
         traceback.print_exc()
 

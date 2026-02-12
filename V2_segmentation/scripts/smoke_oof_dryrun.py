@@ -152,7 +152,7 @@ def smoke_oof_dryrun(
         assert not np.isnan(oof_cls).any(), "NaN in cls predictions"
         assert not np.isnan(oof_seg).any(), "NaN in seg predictions"
 
-        logger.info(f"  ✓ All sanity checks passed")
+        logger.info(f"  [OK] All sanity checks passed")
 
         # 5. Check cls prediction quality (should sum to ~1.0 per sample)
         cls_sums = oof_cls.sum(axis=1)
@@ -180,12 +180,12 @@ def smoke_oof_dryrun(
             torch.cuda.empty_cache()
 
         result["status"] = "PASS"
-        logger.info(f"  ✅ OOF dry-run PASSED for {backbone_name}")
+        logger.info(f"  [PASS] OOF dry-run PASSED for {backbone_name}")
 
     except Exception as e:
         result["status"] = "FAIL"
         result["error"] = str(e)
-        logger.error(f"  ❌ OOF dry-run FAILED for {backbone_name}: {e}")
+        logger.error(f"  [FAIL] OOF dry-run FAILED for {backbone_name}: {e}")
         import traceback
         traceback.print_exc()
 

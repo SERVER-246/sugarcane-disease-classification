@@ -114,7 +114,7 @@ def _assert_gpu_headroom(min_free_gb: float = 8.0) -> bool:
         free = usage["free"]
         if free < min_free_gb:
             logger.error(
-                f"  ✗ VRAM still low after cleanup: {free:.2f} GB free. "
+                f"  [FAIL] VRAM still low after cleanup: {free:.2f} GB free. "
                 f"Skipping backbone."
             )
             return False
@@ -181,7 +181,7 @@ class TrainingReport:
         for r in self.results:
             name = r.get("backbone", "?")
             if r.get("skipped"):
-                lines.append(f"  ✗ {name:30s} — SKIPPED: {r.get('skip_reason')}")
+                lines.append(f"  [FAIL] {name:30s} -- SKIPPED: {r.get('skip_reason')}")
             elif r.get("rollback"):
                 lines.append(f"  ↩ {name:30s} — ROLLBACK")
             else:
@@ -194,7 +194,7 @@ class TrainingReport:
                 acc = final.get("cls_accuracy", 0)
                 miou = final.get("mean_iou", 0)
                 lines.append(
-                    f"  ✓ {name:30s} — "
+                    f"  [OK] {name:30s} -- "
                     f"acc={acc:.4f}  mIoU={miou:.4f}  "
                     f"time={t / 60:.1f}min"
                 )
@@ -274,7 +274,7 @@ def train_all_backbones(
                 report.add(backbone_name, result)
 
             except torch.cuda.OutOfMemoryError:
-                logger.error(f"  ✗ OOM for {backbone_name} — attempting recovery...")
+                logger.error(f"  [FAIL] OOM for {backbone_name} -- attempting recovery...")
                 MemoryManager.emergency_cleanup()
 
                 # Retry with halved batch size
@@ -284,11 +284,11 @@ def train_all_backbones(
                     )
                     report.add(backbone_name, result)
                 except Exception as e2:
-                    logger.exception(f"  ✗ Retry failed for {backbone_name}: {e2}")
+                    logger.exception(f"  [FAIL] Retry failed for {backbone_name}: {e2}")
                     report.add_skip(backbone_name, f"OOM + retry failed: {e2}")
 
             except Exception as e:
-                logger.exception(f"  ✗ Error training {backbone_name}: {e}")
+                logger.exception(f"  [FAIL] Error training {backbone_name}: {e}")
                 report.add_skip(backbone_name, str(e))
                 _gpu_cleanup()
 

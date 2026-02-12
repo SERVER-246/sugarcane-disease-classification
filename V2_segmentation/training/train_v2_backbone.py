@@ -433,7 +433,7 @@ def _check_rollback(
     # Passed
     rollback_logger.log_pass(backbone_name, v1_acc, v2_acc, v2_miou)
     logger.info(
-        f"  ✓ Rollback gate PASSED: "
+        f"  [OK] Rollback gate PASSED: "
         f"V1_acc={v1_acc}, V2_acc={v2_acc:.4f}, mIoU={v2_miou:.4f}"
     )
     return False
@@ -549,7 +549,7 @@ def train_v2_backbone(
     )
     if should_rollback:
         logger.warning(
-            f"  ✗ ROLLBACK: {backbone_name} reverted to V1 — "
+            f"  [FAIL] ROLLBACK: {backbone_name} reverted to V1 — "
             f"Phase C skipped"
         )
         results["rollback"] = True
@@ -581,7 +581,7 @@ def train_v2_backbone(
     elapsed = time.time() - t_start
     results["total_time_s"] = round(elapsed, 1)
     logger.info(
-        f"\n  ✓ {backbone_name} V2 training complete in {elapsed / 60:.1f} min "
+        f"\n  [OK] {backbone_name} V2 training complete in {elapsed / 60:.1f} min "
         f"(acc={final_metrics.get('cls_accuracy', 0):.4f}, "
         f"mIoU={final_metrics.get('mean_iou', 0):.4f})\n"
     )

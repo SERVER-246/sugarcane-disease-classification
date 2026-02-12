@@ -86,12 +86,12 @@ def test_backbone_pipeline(
             result = fn()
             elapsed = time.time() - t0
             checks.append({"name": name, "passed": True, "time": elapsed})
-            logger.info(f"    ✓ {name} ({elapsed:.2f}s)")
+            logger.info(f"    [OK] {name} ({elapsed:.2f}s)")
             return result
         except Exception as e:
             elapsed = time.time() - t0
             checks.append({"name": name, "passed": False, "error": str(e), "time": elapsed})
-            logger.error(f"    ✗ {name} FAILED: {e}")
+            logger.error(f"    [FAIL] {name} FAILED: {e}")
             traceback.print_exc()
             return None
 
@@ -462,7 +462,7 @@ def main() -> int:
         if not r["passed"]:
             for c in r["checks"]:
                 if not c["passed"]:
-                    logger.info(f"         └─ ✗ {c['name']}: {c.get('error', '?')}")
+                    logger.info(f"         +-- [FAIL] {c['name']}: {c.get('error', '?')}")
         if r["passed"]:
             passed_count += 1
 

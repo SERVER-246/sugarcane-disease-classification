@@ -65,7 +65,7 @@ class ValidationDemo:
                     img = cv2.resize(img, (224, 224))
                     axes[0][i].imshow(img)
                 axes[0][i].set_title(
-                    f"✓ PR={res['plant_ratio']:.2f}",
+                    f"[OK] PR={res['plant_ratio']:.2f}",
                     fontsize=7, color="green",
                 )
                 axes[0][i].axis("off")
@@ -79,7 +79,7 @@ class ValidationDemo:
                     axes[1][i].imshow(img)
                 reason = res.get("reason", "")
                 axes[1][i].set_title(
-                    f"✗ {reason[:30]}",
+                    f"[FAIL] {reason[:30]}",
                     fontsize=6, color="red",
                 )
                 axes[1][i].axis("off")
