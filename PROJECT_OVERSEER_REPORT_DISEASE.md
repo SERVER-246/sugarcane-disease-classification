@@ -1,11 +1,11 @@
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-11 (V2 Pipeline Running — CUDA OOM Fix + tqdm Progress + GradCAM Memory Leak Resolved)  
+**Last Updated:** 2026-02-13 (V2 Pipeline Rerun — Transformer Grad Checkpoint Fix + Plot Spacing Fix + Unicode Fix)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `1030cc1` (V2 pipeline fixes: memory leak, tqdm, model factory)  
-**Short One-Line HEALTH:** 🟢 **Green** — V2 pipeline executing (Phase 1 GradCAM ~16% complete), CUDA memory leak fixed, 0 errors, GPU stable at ~700 MiB
+**Current HEAD Commit Hash:** `d3e91a7` (fix(V2): replace Unicode symbols with ASCII for Windows cp1252 logging)  
+**Short One-Line HEALTH:** 🟡 **Yellow** — V2 pipeline rerun in progress (Phase 3 training, 1/15 backbones), 4 transformer backbones failed in Run 1, root cause fixed (gradient checkpoint hook corruption), all 15 retraining
 
 ---
 
@@ -18,7 +18,9 @@
 | 3A | Inference Server Foundation | ✅ **COMPLETE** | 2026-02-06 |
 | 3-Seg | V2 Segmentation Pipeline (Infrastructure) | ✅ **COMPLETE** | 2026-02-10 |
 | 3-Seg | V2 Pipeline Bug Fixes (OOM, tqdm, model_factory) | ✅ **COMPLETE** | 2026-02-11 |
-| 3-Seg | V2 Segmentation Pipeline (Training Run) | 🟡 **IN PROGRESS** | - |
+| 3-Seg | V2 Training Run 1 (Phases 0-6) | ✅ **COMPLETE** | 2026-02-13 |
+| 3-Seg | V2 Transformer Fix (Grad Ckpt + Plots + Unicode) | ✅ **COMPLETE** | 2026-02-13 |
+| 3-Seg | V2 Training Run 2 — Rerun (Phases 3-6) | 🟡 **IN PROGRESS** | - |
 | 3B | Inference Server Hardening | 🔲 Not Started | - |
 | 4 | Deployment Discipline & Model Governance | 🔲 Not Started | - |
 | 5 | Continuous Validation & Production Safeguards | 🔲 Not Started | - |
@@ -29,14 +31,14 @@
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 pipeline running (Phase 1 GradCAM generation in progress), CUDA OOM memory leak fixed (82 GiB → 0.7 GiB), tqdm progress bars added, 0 pipeline errors
+- **Health Verdict:** V2 Run 1 completed (43 hours, all 7 phases). 11/15 backbones achieved 92-96% accuracy. **4 transformer backbones failed** due to gradient checkpoint hook corruption (SwinTransformer 4.71%, ViTHybrid 4.71%, CoAtNet 76%, MaxViT 79%). Root cause diagnosed and fixed. **Rerun in progress** (Phase 3 training, all 15 backbones retraining from scratch).
 - **Top 3 Prioritized Actions:**
-  1. ~~**Sprint 1-3A + 3-Seg Infrastructure**~~ ✅ **ALL COMPLETE** — CI, inference server, 70 V2 files
-  2. ~~**Sprint 3-Seg: V2 Bug Fixes**~~ ✅ **COMPLETE** — CUDA OOM fix, tqdm, model_factory optimization, encoding fix
-  3. **Sprint 3-Seg: V2 Training Run** — Phase 0 ✅, Phase 0.5 ✅, Phase 1 🟡 (GradCAM ~16%), Phases 2-6 pending
-  4. **Sprint 3B: Inference Server Hardening** — 🔲 After V2 training completes
-  5. **Sprint 4: Model Governance** — 🔲 Deployment discipline
-- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **12 files modified for V2 bug fixes**
+  1. ~~**Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes**~~ ✅ **ALL COMPLETE**
+  2. ~~**V2 Run 1 Complete + Diagnosed**~~ ✅ 11/15 good, 4 transformer failures root-caused
+  3. ~~**V2 Transformer Fix**~~ ✅ Gradient checkpoint exclusion, NaN loss guard, plot spacing, Unicode logging
+  4. **V2 Training Run 2** — 🟡 Phase 3 retraining all 15 backbones with fixes applied
+  5. **Sprint 3B: Inference Server Hardening** — 🔲 After V2 Run 2 completes
+- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **19 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix)
 
 ---
 
@@ -1156,6 +1158,62 @@ The project is production-ready with:
    | `gradcam_generator.py` | Clear cached tensors in cleanup | +4 |
    | `audit_reporter.py` | UTF-8 encoding | +3 |
 
+10. **V2 Training Run 1 — Results & Transformer Failure Diagnosis (2026-02-13):**
+
+    V2 pipeline Run 1 completed successfully (43 hours, Feb 11-13). All 7 phases finished (exit code 0). However, analysis revealed critical failures in 4 of 15 backbones:
+
+    **Run 1 Results (15 backbones):**
+
+    | Backbone | Tier | Accuracy | Status |
+    |----------|------|----------|--------|
+    | CustomConvNeXt | MEDIUM | 95.38% | ✅ Good |
+    | CustomEfficientNetV4 | LIGHT | 94.91% | ✅ Good |
+    | CustomGhostNetV2 | LIGHT | 92.27% | ✅ Good |
+    | CustomResNetMish | MEDIUM | 94.53% | ✅ Good |
+    | CustomCSPDarkNet | HIGH | 95.00% | ✅ Good |
+    | CustomInceptionV4 | LIGHT | 94.63% | ✅ Good |
+    | CustomRegNet | MEDIUM | 92.93% | ✅ Good |
+    | CustomDenseNetHybrid | LIGHT | 93.87% | ✅ Good |
+    | CustomDeiTStyle | HEAVY | 93.40% | ✅ Good |
+    | CustomMobileOne | LIGHT | 94.34% | ✅ Good |
+    | CustomDynamicConvNet | HIGH | 92.55% | ✅ Good |
+    | **CustomSwinTransformer** | **HEAVY** | **4.71%** | ❌ **FAILED** |
+    | **CustomViTHybrid** | **HEAVY** | **4.71%** | ❌ **FAILED** |
+    | **CustomCoAtNet** | **HEAVY** | **76.34%** | ⚠️ **UNDERPERFORMED** |
+    | **CustomMaxViT** | **HEAVY** | **78.89%** | ⚠️ **UNDERPERFORMED** |
+
+    **10a. Root Cause — Gradient Checkpoint Hook Corruption (CRITICAL):**
+    - **Symptom:** SwinTransformer and ViTHybrid reached 91.42% accuracy in Phase B, then collapsed to 4.71% (random chance for 13 classes = 7.7%) in Phase C epoch 1. CoAtNet and MaxViT never exceeded ~77-79% across any phase.
+    - **Root Cause:** `memory_manager.py:apply_grad_checkpoint()` wrapped ALL modules whose names contained "transformer" or "block" with `torch.utils.checkpoint.checkpoint()`. This includes modules that have forward hooks registered by `BackboneFeatureExtractor` for feature extraction. Gradient checkpointing re-runs the forward pass during backprop, causing forward hooks to fire **twice** — once normally, once during recomputation with stale tensors. The second hook invocation overwrites the captured features with garbage, corrupting the segmentation decoder input and causing NaN loss → accuracy collapse.
+    - **Impact:** All 5 HEAVY-tier backbones (which use `grad_checkpoint=True`) were affected. DeiTStyle survived because its hooked modules happened not to match the "transformer"/"block" name pattern.
+    - **Fix (`memory_manager.py`):** Rewrote `apply_grad_checkpoint()` to build a `protected_names` set containing: (1) all modules with `_forward_hooks`, and (2) their entire ancestor chain up to the root. Only wraps modules NOT in the protected set. This ensures hooks fire exactly once per forward pass.
+
+    **10b. NaN/Inf Loss Guard:**
+    - **Fix (`train_v2_backbone.py`):** Added guard in `train_one_epoch()` — after computing `loss = loss_dict["loss"]`, checks `torch.isnan(loss) or torch.isinf(loss)`. If detected, logs warning, calls `optimizer.zero_grad(set_to_none=True)`, and `continue`s to next batch. Prevents single corrupted batch from crashing entire training run.
+
+    **10c. Plot Spacing/Overlap Fixes:**
+    - **Symptom:** Confusion matrix labels overlapped, ROC legend clipped, per-class metrics bars unreadable for 13 classes.
+    - **Fix (`backbone_plots.py`):** Confusion matrix: larger figure `(12+n*1.1, 10+n*1.0)`, `constrained_layout=True`, `rotation_mode="anchor"`, `labelpad=10`. ROC curves: `(12,9)`, `constrained_layout`, better legend. Per-class metrics: `(14+n*1.2, 7)`, `constrained_layout`, `rotation=40`.
+    - **Fix (`training_curves.py`):** Larger figures `(12, 4*n_metrics)`, `constrained_layout=True`, removed conflicting `tight_layout()`, `suptitle y=1.02`.
+
+    **10d. Unicode Encoding Fix:**
+    - **Symptom:** `UnicodeEncodeError: 'charmap' codec can't encode character '\u2014'` (em-dash) when logging to file on Windows (cp1252 default).
+    - **Fix (`run_pipeline_v2.py`):** Added `encoding='utf-8'` to both `RotatingFileHandler` instances. Also replaced all em-dash characters (`—`) and special Unicode symbols (`⚠`, `↩`) with ASCII equivalents across `train_all_backbones.py`, `train_v2_backbone.py`, `checkpoint_manager.py`.
+
+    **Summary of Changes (7 files):**
+
+    | File | Change | Impact |
+    |------|--------|--------|
+    | `training/memory_manager.py` | Rewrote `apply_grad_checkpoint()` with hook-aware exclusion | **CRITICAL** — fixes 4 transformer failures |
+    | `training/train_v2_backbone.py` | NaN/Inf loss guard + em-dash removal | Prevents crash on corrupted batch |
+    | `visualization/backbone_plots.py` | Larger figures, constrained_layout, better label rotation | Readable plots for 13 classes |
+    | `visualization/training_curves.py` | Larger figures, constrained_layout, removed tight_layout conflicts | Non-overlapping training curves |
+    | `run_pipeline_v2.py` | `encoding='utf-8'` on log file handlers + em-dash removal | Fixes Windows logging crash |
+    | `training/train_all_backbones.py` | Em-dash + special char replacement to ASCII | Fixes Windows logging crash |
+    | `training/checkpoint_manager.py` | Em-dash replacement to ASCII | Fixes Windows logging crash |
+
+    **Rerun:** Deleted all 60 V2 checkpoint files (25 GB), launched `--phase 3 4 5 6` to retrain all 15 backbones from scratch.
+
 **CI Pipeline Status:**
 - ✅ Lint (Ruff) — Ready
 - ✅ Type Check (Pyright) — Ready (continue-on-error for now)
@@ -1230,6 +1288,19 @@ The project is production-ready with:
     - Added `_gpu_cleanup()` between ensemble stages
     - Updated `.gitignore` with V2 artifact patterns
     - **Verification:** Pipeline running successfully — Phase 0 ✅, Phase 0.5 ✅, Phase 1 in progress (GradCAM), 0 errors
+18. ✅ **Sprint 3-Seg: V2 Training Run 1 Complete** (2026-02-13, 43 hours)
+    - Full 7-phase pipeline completed (exit code 0): Phase 0 (analysis) → Phase 0.5 (gold labels) → Phase 1 (pseudo-labels) → Phase 2 (model verify) → Phase 3 (training) → Phase 4 (ensemble) → Phase 5 (audit) → Phase 6 (visualization)
+    - **11/15 backbones achieved 92-96% accuracy** (ConvNeXt 95.38%, CSPDarkNet 95%, EfficientNetV4 94.91%, InceptionV4 94.63%, ResNetMish 94.53%, MobileOne 94.34%, DenseNetHybrid 93.87%, DeiTStyle 93.40%, RegNet 92.93%, DynamicConvNet 92.55%, GhostNetV2 92.27%)
+    - **4 transformer backbones failed:** SwinTransformer (4.71%), ViTHybrid (4.71%), CoAtNet (76.34%), MaxViT (78.89%)
+    - Ensemble stages 3-7, 9-12 SKIPPED due to missing OOF predictions from failed backbones
+    - Stage 8 seg-weighted ensemble corrupted by NaN weights from broken transformers
+19. ✅ **Sprint 3-Seg: V2 Transformer Fix** (2026-02-13, commit `d3e91a7`, 7 files)
+    - **ROOT CAUSE:** Gradient checkpoint in `memory_manager.py` wrapped hooked modules (forward hooks fire twice during backprop recomputation → feature corruption → NaN loss → accuracy collapse)
+    - **FIX:** Rewrote `apply_grad_checkpoint()` to build protected set of hooked modules + ancestors, excluding them from checkpoint wrapping
+    - Added NaN/Inf loss guard in training loop (skip corrupted batches)
+    - Fixed plot spacing/overlap for 13-class confusion matrices, ROC curves, per-class metrics
+    - Fixed Unicode em-dash/symbol encoding errors in 4 logging files + added `encoding='utf-8'` to log file handlers
+    - Deleted all 60 V2 checkpoint files (25 GB), launched full rerun of Phases 3-6
 
 ### Partial Items ⚠️
 
@@ -1278,9 +1349,11 @@ The project is production-ready with:
 | 3 | ~~**Sprint 3A: Inference Server**~~ | Enable remote/mobile access | HIGH | ✅ DONE |
 | 4 | ~~**Sprint 3-Seg: V2 Segmentation Infra**~~ | Dual-head training infrastructure | HIGH | ✅ DONE |
 | 5 | ~~**Sprint 3-Seg: V2 Bug Fixes**~~ | CUDA OOM, tqdm, model_factory, encoding | HIGH | ✅ DONE |
-| 6 | **Sprint 3-Seg: V2 Training Run** | Phase 1 GradCAM in progress, Phases 2-6 pending | HIGH | 🟡 RUNNING |
-| 7 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER TRAINING |
-| 8 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
+| 6 | ~~**Sprint 3-Seg: V2 Training Run 1**~~ | 11/15 good (92-96%), 4 transformers failed | HIGH | ✅ DONE |
+| 7 | ~~**Sprint 3-Seg: V2 Transformer Fix**~~ | Grad checkpoint hook exclusion, NaN guard, plots, Unicode | HIGH | ✅ DONE |
+| 8 | **Sprint 3-Seg: V2 Training Run 2 (Rerun)** | All 15 backbones retraining with fixes, Phases 3-6 | HIGH | 🟡 RUNNING |
+| 9 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER TRAINING |
+| 10 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
 | 9 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
 | 10 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
 | 11 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
@@ -1550,8 +1623,10 @@ Get-ChildItem "Data\" -Recurse -File |
 | 2026-02-10 | bee0f3b | **V2 Remaining Phases** | 38 new files: pseudo_labels, evaluation, ensemble_v2, validation, visualization |
 | 2026-02-10 | 1b5b1a0 | **V2 Per-Backbone Plots** | backbone_plots.py, ensemble_stage_plots.py, V1↔V2 parity |
 | 2026-02-10 | 1030cc1 | **Lint fixes** | Import sorting, SIM105 in inference_server |
-| 2026-02-11 | *(pending)* | **V2 Bug Fixes** | CUDA OOM fix, tqdm progress, model_factory split, encoding fix (12 files, +373/-148) |
-| 2026-02-11 | *(running)* | **V2 Pipeline Execution** | Phase 0 ✅, Phase 0.5 ✅, Phase 1 🟡 (GradCAM ~16%), Phases 2-6 pending |
+| 2026-02-11 | 7e4c3eb | **V2 Bug Fixes** | CUDA OOM fix, tqdm progress, model_factory split, encoding fix (12 files, +373/-148) |
+| 2026-02-13 | *(completed)* | **V2 Run 1 Complete** | 43 hours, all 7 phases, 11/15 good (92-96%), 4 transformers failed |
+| 2026-02-13 | d3e91a7 | **V2 Transformer Fix** | Grad checkpoint hook exclusion, NaN guard, plot spacing, Unicode (7 files) |
+| 2026-02-13 | *(running)* | **V2 Run 2 (Rerun)** | Phases 3-6, all 15 backbones retraining from scratch with fixes |
 
 #### Current State Summary (February 2026)
 
@@ -1567,12 +1642,16 @@ Get-ChildItem "Data\" -Recurse -File |
 | Model Storage | ~8 GB (checkpoints + exports) |
 | Git-tracked Files | 131+ |
 | V2 Segmentation Files | 70 (across 8 modules, +2 visualization files) |
-| V2 Bug Fix Files Modified | 12 (+373/-148 lines) |
+| V2 Bug Fix Files Modified | 19 total (12 in Run 1 + 7 in transformer fix) |
+| V2 Run 1 Result | 11/15 good (92-96%), 4 transformers failed |
+| V2 Run 1 Best Backbone | CustomConvNeXt (95.38%) |
+| V2 Run 1 Failures | SwinTransformer (4.71%), ViTHybrid (4.71%), CoAtNet (76%), MaxViT (79%) |
+| V2 Failure Root Cause | Gradient checkpoint re-runs forward hooks → feature corruption |
 | Tests Passing | 51 (+ 30 slow skipped) |
 | CI/CD Status | ✅ Fully Operational |
 | Ruff Lint Errors | 0 |
 | Pylance Type Errors | 0 |
-| V2 Pipeline Status | 🟡 Running (Phase 1 GradCAM, ~16% complete) |
+| V2 Pipeline Status | 🟡 Run 2 in progress (Phase 3 training, all 15 backbones retraining) |
 | V2 Pipeline Errors | 0 |
 | GPU Memory (during run) | ~700 MiB / 24,570 MiB (2.9% utilization) |
 
@@ -1584,22 +1663,22 @@ Get-ChildItem "Data\" -Recurse -File |
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-11 (V2 Pipeline Running — CUDA OOM Fix + tqdm Progress)  
+**Last Updated:** 2026-02-13 (V2 Run 1 Complete — Transformer Fix — Run 2 In Progress)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** *(see latest commit)*  
-**Short One-Line HEALTH:** 🟢 **Green** — V2 pipeline executing, CUDA memory leak fixed, 0 errors
+**Current HEAD Commit Hash:** `d3e91a7`  
+**Short One-Line HEALTH:** 🟡 **Yellow** — V2 Run 2 in progress (all 15 backbones retraining), 4 transformer failures fixed
 
 ---
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 pipeline running (Phase 1 GradCAM in progress), CUDA OOM fixed (82 GiB → 0.7 GiB), 0 errors
+- **Health Verdict:** V2 Run 1 complete (43h). 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption). Fixed + retraining.
 - **Top 3 Prioritized Actions:**
-  1. ✅ Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes — ALL COMPLETE
-  2. 🟡 V2 Pipeline Running — Phase 1 GradCAM (~16%), Phases 2-6 pending
-  3. V2 Ensemble & Validation — 12-stage pipeline (after training)
-- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 12 files modified for bug fixes; 0 Pylance errors
+  1. ✅ Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes + Run 1 + Transformer Fix — ALL COMPLETE
+  2. 🟡 V2 Run 2 — Phase 3 training (all 15 backbones retraining with fixes)
+  3. V2 Ensemble & Validation — 12-stage pipeline (Phases 4-6, after training)
+- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 19 files modified across fixes; 0 Pylance errors
 ```
 
 ---
@@ -1608,13 +1687,14 @@ Get-ChildItem "Data\" -Recurse -File |
 
 **Report Generated By:** Sugam Singh  
 *Full Path: `F:\DBT-Base-DIr\PROJECT_OVERSEER_REPORT_DISEASE.md`*  
-*Last Updated: 2026-02-11 (V2 Pipeline Running — CUDA OOM Fix + tqdm Progress)*  
+*Last Updated: 2026-02-13 (V2 Run 1 Complete — Transformer Fix Applied — Run 2 In Progress)*  
 *Total Files Analyzed: 390+ documented + 10,607 dataset images*  
 *Total Model Storage: ~8 GB (checkpoints + exports)*  
 *Total Training Data: 10,607 images (13 classes)*  
 *Total Tests Passing: 51 (+ 30 slow tests skipped by design)*  
 *V2 Segmentation Files: 70 Python files across 8 modules*  
-*V2 Bug Fix Commit: 12 files modified, +373/-148 lines*  
-*V2 Pipeline Status: 🟡 Running (Phase 1 GradCAM ~16%, 0 errors)*  
+*V2 Bug Fix Files: 19 total (12 Run 1 fixes + 7 transformer fix)*  
+*V2 Run 1: 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption)*  
+*V2 Run 2: 🟡 In progress — all 15 backbones retraining with fixes*  
 *CI Pipeline: ✅ Fully Operational (Ruff + Pyright + pytest + Docker)*  
 *Reference Document: [DISEASE_PIPELINE_NEXT_STEPS_PLAN.md](DISEASE_PIPELINE_NEXT_STEPS_PLAN.md)*

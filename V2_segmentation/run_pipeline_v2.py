@@ -60,10 +60,11 @@ def setup_logging(verbose: bool = False) -> None:
     console.setFormatter(fmt)
     root.addHandler(console)
 
-    # File handler — V2 pipeline log with rotation (10 MB × 3 backups)
+    # File handler -- V2 pipeline log with rotation (10 MB x 3 backups)
     log_file = BASE_DIR / "v2_pipeline.log"
     fh = RotatingFileHandler(
         log_file, maxBytes=10 * 1024 * 1024, backupCount=3,
+        encoding="utf-8",
     )
     fh.setLevel(level)
     fh.setFormatter(fmt)
@@ -73,6 +74,7 @@ def setup_logging(verbose: bool = False) -> None:
     err_file = BASE_DIR / "v2_pipeline_errors.log"
     efh = RotatingFileHandler(
         err_file, maxBytes=5 * 1024 * 1024, backupCount=2,
+        encoding="utf-8",
     )
     efh.setLevel(logging.ERROR)
     efh.setFormatter(fmt)

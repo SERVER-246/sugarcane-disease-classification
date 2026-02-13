@@ -109,6 +109,12 @@ class MemoryManager:
     def apply_grad_checkpoint(model: nn.Module, backbone_name: str) -> bool:
         """Enable gradient checkpointing for HEAVY-tier backbones.
 
+        IMPORTANT: Modules that have forward hooks (used by the dual-head
+        feature extractor) must NOT be wrapped — gradient checkpoint
+        re-runs forward during backprop, causing hooks to fire twice with
+        stale/wrong tensors.  We collect hooked module paths and skip them
+        plus all their ancestors.
+
         Returns True if checkpointing was enabled.
         """
         profile = BACKBONE_PROFILES.get(backbone_name, {})
@@ -116,19 +122,47 @@ class MemoryManager:
             return False
 
         enabled = False
-        # Try torch.utils.checkpoint integration
         backbone: nn.Module
         if hasattr(model, "backbone"):
             backbone = model.backbone  # type: ignore[assignment]
         else:
             backbone = model
 
-        # Enable on transformer blocks if they support it
+        # ── Collect modules that must NOT be checkpointed ─────────────
+        # Any module with a forward hook (registered by BackboneFeatureExtractor)
+        # and its ancestor chain must be excluded.  Wrapping an ancestor would
+        # re-run the child's forward during backprop, making the hook capture
+        # stale tensors — the root cause of NaN collapse in Phase C.
+        protected_names: set[str] = set()
+
         for name, module in backbone.named_modules():
+            if module._forward_hooks:  # has registered forward hooks
+                protected_names.add(name)
+                # Also protect all ancestors of the hooked module
+                parts = name.split(".")
+                for i in range(1, len(parts)):
+                    protected_names.add(".".join(parts[:i]))
+
+        # Also protect the root backbone itself ("" path)
+        protected_names.add("")
+
+        if protected_names:
+            logger.debug(
+                f"  Grad-ckpt: protecting {len(protected_names)} modules with hooks "
+                f"or ancestors: {sorted(protected_names)[:10]}..."
+            )
+
+        # ── Apply checkpointing to safe modules only ─────────────────
+        wrapped_count = 0
+        for name, module in backbone.named_modules():
+            # Skip protected modules
+            if name in protected_names:
+                continue
+
             if hasattr(module, "gradient_checkpointing_enable"):
                 module.gradient_checkpointing_enable()  # type: ignore[operator]
                 enabled = True
-            elif "transformer" in name.lower() or "block" in name.lower():
+            elif ("transformer" in name.lower() or "block" in name.lower()):
                 # Wrap forward with checkpoint
                 if hasattr(module, "forward") and not getattr(module, "_ckpt_wrapped", False):
                     original_forward = module.forward
@@ -142,10 +176,15 @@ class MemoryManager:
 
                     module.forward = make_ckpt_forward(original_forward)
                     module._ckpt_wrapped = True  # type: ignore[assignment]
+                    wrapped_count += 1
                     enabled = True
 
         if enabled:
-            logger.info(f"  Gradient checkpointing ENABLED for {backbone_name}")
+            logger.info(
+                f"  Gradient checkpointing ENABLED for {backbone_name} "
+                f"({wrapped_count} modules wrapped, "
+                f"{len(protected_names)} hook-protected modules excluded)"
+            )
         return enabled
 
     # ── VRAM monitoring ─────────────────────────────────────────────────

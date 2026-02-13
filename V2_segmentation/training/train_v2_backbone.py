@@ -72,7 +72,7 @@ def load_v1_checkpoint(model: DualHeadModel, backbone_name: str) -> None:
             return
 
     logger.warning(
-        f"  No V1 checkpoint found for {backbone_name} in {V1_CKPT_DIR} — "
+        f"  No V1 checkpoint found for {backbone_name} in {V1_CKPT_DIR} -- "
         f"using random initialization"
     )
 
@@ -150,6 +150,14 @@ def train_one_epoch(
                 confidence=confidence,
             )
             loss = loss_dict["loss"]
+
+        # ── NaN guard: skip corrupted batches instead of crashing ────
+        if torch.isnan(loss) or torch.isinf(loss):
+            logger.warning(
+                f"  NaN/Inf loss detected at batch {batch_idx} -- skipping"
+            )
+            optimizer.zero_grad(set_to_none=True)
+            continue
 
         # Scale loss for gradient accumulation
         scaled_loss = MemoryManager.scale_loss(loss, grad_accum_steps)
@@ -254,7 +262,7 @@ def _run_phase(
     Best validation metrics dict for this phase.
     """
     logger.info(f"{'='*60}")
-    logger.info(f"  Phase {phase_name} — {phase_cfg.get('_desc', '')}")
+    logger.info(f"  Phase {phase_name} -- {phase_cfg.get('_desc', '')}")
     logger.info(f"{'='*60}")
 
     epochs = phase_cfg["epochs"]
@@ -285,7 +293,7 @@ def _run_phase(
         weight_decay=phase_cfg["weight_decay"],
     )
     if not param_groups:
-        logger.warning(f"  Phase {phase_name}: no trainable parameters — skipping")
+        logger.warning(f"  Phase {phase_name}: no trainable parameters -- skipping")
         return {}
 
     optimizer = AdamW(param_groups)
@@ -341,7 +349,7 @@ def _run_phase(
         val_miou = val_metrics.get("mean_iou", 0)
         logger.info(
             f"  Phase {phase_name} epoch {epoch}/{epochs} "
-            f"[{elapsed:.1f}s] — "
+            f"[{elapsed:.1f}s] -- "
             f"train_loss={train_loss:.4f}  val_loss={val_loss:.4f}  "
             f"val_acc={val_acc:.4f}  val_mIoU={val_miou:.4f}"
         )
@@ -549,7 +557,7 @@ def train_v2_backbone(
     )
     if should_rollback:
         logger.warning(
-            f"  [FAIL] ROLLBACK: {backbone_name} reverted to V1 — "
+            f"  [FAIL] ROLLBACK: {backbone_name} reverted to V1 -- "
             f"Phase C skipped"
         )
         results["rollback"] = True

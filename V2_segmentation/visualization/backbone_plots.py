@@ -60,7 +60,11 @@ class BackbonePlots:
                 class_names = list(CLASS_NAMES)
 
             n = len(class_names)
-            fig, ax = plt.subplots(1, 1, figsize=(max(10, n * 0.9), max(8, n * 0.8)))
+            fig, ax = plt.subplots(
+                1, 1,
+                figsize=(max(12, n * 1.1), max(10, n * 1.0)),
+                constrained_layout=True,
+            )
 
             # Normalize for color (row-wise %)
             row_sums = cm.sum(axis=1, keepdims=True)
@@ -85,16 +89,18 @@ class BackbonePlots:
 
             ax.set_xticks(range(n))
             ax.set_yticks(range(n))
+            # Use shorter labels with word wrapping for readability
+            short_labels = [c.replace("_", " ") for c in class_names]
             ax.set_xticklabels(
-                [c.replace("_", "\n") for c in class_names],
+                short_labels,
                 rotation=45, ha="right", fontsize=7,
+                rotation_mode="anchor",
             )
-            ax.set_yticklabels(class_names, fontsize=7)
-            ax.set_xlabel("Predicted", fontsize=10)
-            ax.set_ylabel("True", fontsize=10)
-            ax.set_title(f"Confusion Matrix: {backbone_name}", fontsize=12)
+            ax.set_yticklabels(short_labels, fontsize=7)
+            ax.set_xlabel("Predicted", fontsize=11, labelpad=10)
+            ax.set_ylabel("True", fontsize=11, labelpad=10)
+            ax.set_title(f"Confusion Matrix: {backbone_name}", fontsize=13, pad=12)
 
-            plt.tight_layout()
             path = self.output_dir / f"{backbone_name}_confusion_matrix.tiff"
             fig.savefig(str(path), dpi=DPI, format="tiff", bbox_inches="tight")
             plt.close(fig)
@@ -139,7 +145,9 @@ class BackbonePlots:
             n_classes = len(class_names)
             labels_bin = np.asarray(label_binarize(all_labels, classes=list(range(n_classes))))
 
-            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+            fig, ax = plt.subplots(
+                1, 1, figsize=(12, 9), constrained_layout=True,
+            )
             cmap = plt.get_cmap("tab20")
             colors = [cmap(i / max(n_classes, 1)) for i in range(n_classes)]
 
@@ -160,16 +168,18 @@ class BackbonePlots:
             ax.plot([0, 1], [0, 1], "k--", linewidth=0.8, alpha=0.5)
 
             macro_auc = float(np.mean(all_auc)) if all_auc else 0.0
-            ax.set_xlabel("False Positive Rate", fontsize=10)
-            ax.set_ylabel("True Positive Rate", fontsize=10)
+            ax.set_xlabel("False Positive Rate", fontsize=11)
+            ax.set_ylabel("True Positive Rate", fontsize=11)
             ax.set_title(
                 f"ROC Curves: {backbone_name}\n(Macro AUC = {macro_auc:.4f})",
-                fontsize=12,
+                fontsize=13, pad=12,
             )
-            ax.legend(fontsize=6, loc="lower right", ncol=2)
+            ax.legend(
+                fontsize=7, loc="lower right", ncol=2,
+                framealpha=0.9, borderpad=1.0, handlelength=1.5,
+            )
             ax.grid(True, alpha=0.3)
 
-            plt.tight_layout()
             path = self.output_dir / f"{backbone_name}_roc_curves.tiff"
             fig.savefig(str(path), dpi=DPI, format="tiff", bbox_inches="tight")
             plt.close(fig)
@@ -212,7 +222,11 @@ class BackbonePlots:
             x = np.arange(n)
             width = 0.25
 
-            fig, ax = plt.subplots(1, 1, figsize=(max(12, n * 1.0), 6))
+            fig, ax = plt.subplots(
+                1, 1,
+                figsize=(max(14, n * 1.2), 7),
+                constrained_layout=True,
+            )
             ax.bar(x - width, precisions, width, label="Precision", color="#3498db")
             ax.bar(x, recalls, width, label="Recall", color="#2ecc71")
             b3 = ax.bar(x + width, f1s, width, label="F1-Score", color="#e74c3c")
@@ -230,16 +244,15 @@ class BackbonePlots:
 
             ax.set_xticks(x)
             ax.set_xticklabels(
-                [c.replace("_", "\n") for c in names],
-                fontsize=7, rotation=45, ha="right",
+                [c.replace("_", " ") for c in names],
+                fontsize=8, rotation=40, ha="right",
+                rotation_mode="anchor",
             )
-            ax.set_ylim(0, 1.15)
-            ax.set_ylabel("Score", fontsize=10)
-            ax.set_title(f"Per-Class Metrics: {backbone_name}", fontsize=12)
-            ax.legend(fontsize=8, loc="upper right")
+            ax.set_ylim(0, 1.18)
+            ax.set_ylabel("Score", fontsize=11)
+            ax.set_title(f"Per-Class Metrics: {backbone_name}", fontsize=13, pad=12)
+            ax.legend(fontsize=9, loc="upper right", framealpha=0.9)
             ax.grid(axis="y", alpha=0.3)
-
-            plt.tight_layout()
             path = self.output_dir / f"{backbone_name}_per_class_metrics.tiff"
             fig.savefig(str(path), dpi=DPI, format="tiff", bbox_inches="tight")
             plt.close(fig)

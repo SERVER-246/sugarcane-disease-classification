@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 WAVES: list[dict[str, Any]] = [
     {
-        "name": "Wave 1 — LIGHT",
+        "name": "Wave 1 -- LIGHT",
         "tier": MemoryTier.LIGHT,
         "backbones": [
             "CustomEfficientNetV4",
@@ -52,7 +52,7 @@ WAVES: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "Wave 2 — MEDIUM",
+        "name": "Wave 2 -- MEDIUM",
         "tier": MemoryTier.MEDIUM,
         "backbones": [
             "CustomConvNeXt",
@@ -61,7 +61,7 @@ WAVES: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "Wave 3 — HIGH",
+        "name": "Wave 3 -- HIGH",
         "tier": MemoryTier.HIGH,
         "backbones": [
             "CustomCSPDarkNet",
@@ -69,7 +69,7 @@ WAVES: list[dict[str, Any]] = [
         ],
     },
     {
-        "name": "Wave 4 — HEAVY",
+        "name": "Wave 4 -- HEAVY",
         "tier": MemoryTier.HEAVY,
         "backbones": [
             "CustomDeiTStyle",
@@ -106,7 +106,7 @@ def _assert_gpu_headroom(min_free_gb: float = 8.0) -> bool:
     free = usage["free"]
     if free < min_free_gb:
         logger.warning(
-            f"  ⚠ Low VRAM: {free:.2f} GB free (need {min_free_gb:.1f} GB). "
+            f"  [WARN] Low VRAM: {free:.2f} GB free (need {min_free_gb:.1f} GB). "
             f"Running emergency cleanup..."
         )
         _gpu_cleanup()
@@ -183,7 +183,7 @@ class TrainingReport:
             if r.get("skipped"):
                 lines.append(f"  [FAIL] {name:30s} -- SKIPPED: {r.get('skip_reason')}")
             elif r.get("rollback"):
-                lines.append(f"  ↩ {name:30s} — ROLLBACK")
+                lines.append(f"  << {name:30s} -- ROLLBACK")
             else:
                 acc = 0.0
                 miou = 0.0
@@ -253,7 +253,7 @@ def train_all_backbones(
             if skip_existing:
                 final_ckpt = CKPT_V2_DIR / f"{backbone_name}_v2_final.pth"
                 if final_ckpt.exists():
-                    logger.info(f"  Skipping {backbone_name} — final checkpoint exists")
+                    logger.info(f"  Skipping {backbone_name} -- final checkpoint exists")
                     report.add_skip(backbone_name, "final checkpoint already exists")
                     continue
 
@@ -394,7 +394,7 @@ if __name__ == "__main__":
         # Create a single-backbone wave
         tier = BACKBONE_PROFILES[args.backbone]["tier"]
         wave_defs = [{
-            "name": f"Single — {args.backbone}",
+            "name": f"Single -- {args.backbone}",
             "tier": tier,
             "backbones": [args.backbone],
         }]

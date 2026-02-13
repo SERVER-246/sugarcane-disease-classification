@@ -326,7 +326,7 @@ class RollbackLogger:
         self._entries.append(entry)
         self._save()
         logger.warning(
-            f"  ROLLBACK: {backbone_name} — {reason} "
+            f"  ROLLBACK: {backbone_name} -- {reason} "
             f"(V1={v1_acc}, V2={v2_acc:.4f}, mIoU={mean_iou:.4f})"
         )
 

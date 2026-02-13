@@ -77,7 +77,12 @@ class TrainingCurves:
                 logger.warning(f"No plottable metrics for {backbone_name}")
                 return self.output_dir / f"{backbone_name}_EMPTY.txt"
 
-            fig, axes = plt.subplots(n_plots, 1, figsize=(10, 3 * n_plots), squeeze=False)
+            fig, axes = plt.subplots(
+                n_plots, 1,
+                figsize=(12, 4 * n_plots),
+                squeeze=False,
+                constrained_layout=True,
+            )
             cmap = plt.get_cmap("tab10")
             colors = [cmap(i / 10) for i in range(10)]
 
@@ -103,8 +108,7 @@ class TrainingCurves:
                 ax.legend(fontsize=7, loc="best")
                 ax.grid(True, alpha=0.3)
 
-            fig.suptitle(f"Training Curves: {backbone_name}", fontsize=11)
-            plt.tight_layout()
+            fig.suptitle(f"Training Curves: {backbone_name}", fontsize=12, y=1.02)
 
             path = self.output_dir / f"{backbone_name}_curves.tiff"
             fig.savefig(str(path), dpi=DPI, format="tiff", bbox_inches="tight")
@@ -128,7 +132,9 @@ class TrainingCurves:
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 
-            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+            fig, ax = plt.subplots(
+                1, 1, figsize=(14, 7), constrained_layout=True,
+            )
             cmap20 = plt.get_cmap("tab20")
             colors = [cmap20(i / max(len(all_histories), 1)) for i in range(len(all_histories))]
 
@@ -139,13 +145,14 @@ class TrainingCurves:
                         color=colors[idx], linewidth=1.0,
                     )
 
-            ax.set_title(f"{metric} Across All Backbones", fontsize=11)
-            ax.set_xlabel("Epoch", fontsize=9)
-            ax.set_ylabel(metric, fontsize=9)
-            ax.legend(fontsize=6, loc="best", ncol=2)
+            ax.set_title(f"{metric} Across All Backbones", fontsize=13, pad=12)
+            ax.set_xlabel("Epoch", fontsize=10)
+            ax.set_ylabel(metric, fontsize=10)
+            ax.legend(
+                fontsize=7, loc="best", ncol=3,
+                framealpha=0.9, borderpad=1.0,
+            )
             ax.grid(True, alpha=0.3)
-
-            plt.tight_layout()
             path = self.output_dir / f"{name}.tiff"
             fig.savefig(str(path), dpi=DPI, format="tiff", bbox_inches="tight")
             plt.close(fig)
