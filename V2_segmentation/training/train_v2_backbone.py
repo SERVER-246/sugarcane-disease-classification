@@ -151,12 +151,16 @@ def train_one_epoch(
             )
             loss = loss_dict["loss"]
 
-        # ── NaN guard: skip corrupted batches instead of crashing ────
+        # ── NaN guard: skip corrupted batches and scale down ──────────
         if torch.isnan(loss) or torch.isinf(loss):
             logger.warning(
                 f"  NaN/Inf loss detected at batch {batch_idx} -- skipping"
             )
             optimizer.zero_grad(set_to_none=True)
+            # Proactively halve the GradScaler to recover from FP16 overflow
+            current_scale = scaler.get_scale()
+            if current_scale > 1.0:
+                scaler.update(new_scale=max(current_scale / 2.0, 1.0))
             continue
 
         # Scale loss for gradient accumulation
@@ -254,12 +258,17 @@ def _run_phase(
     ckpt_mgr: CheckpointManager,
     grad_accum_steps: int = 1,
     hard_sampler: HardExampleSampler | None = None,
-) -> dict[str, Any]:
+    prev_scaler: amp.GradScaler | None = None,  # type: ignore[name-defined]
+    is_heavy_transformer: bool = False,
+) -> tuple[dict[str, Any], amp.GradScaler]:  # type: ignore[name-defined]
     """Train a single phase (A, B, or C).
 
     Returns
     -------
-    Best validation metrics dict for this phase.
+    Tuple of (best validation metrics dict, GradScaler) for this phase.
+    The scaler is returned so it can be passed to the next phase, avoiding
+    FP16 overflow when a fresh scaler's init_scale=65536 interacts with
+    transformer attention in Phase C.
     """
     logger.info(f"{'='*60}")
     logger.info(f"  Phase {phase_name} -- {phase_cfg.get('_desc', '')}")
@@ -294,11 +303,34 @@ def _run_phase(
     )
     if not param_groups:
         logger.warning(f"  Phase {phase_name}: no trainable parameters -- skipping")
-        return {}
+        dummy_scaler = amp.GradScaler("cuda", enabled=AMP_ENABLED)  # type: ignore[attr-defined]
+        return {}, dummy_scaler
 
     optimizer = AdamW(param_groups)
     scheduler = _create_scheduler(optimizer, epochs)
-    scaler = amp.GradScaler("cuda", enabled=AMP_ENABLED)  # type: ignore[attr-defined]
+
+    # ── GradScaler: reuse previous or create fresh ───────────────────
+    # For HEAVY-tier transformers, a fresh GradScaler (init_scale=65536)
+    # causes FP16 overflow in attention layers.  Reuse the calibrated
+    # scaler from the previous phase, or start with a conservative scale.
+    if prev_scaler is not None:
+        scaler = prev_scaler
+        logger.info(
+            f"  Phase {phase_name}: reusing GradScaler from previous phase "
+            f"(scale={scaler.get_scale():.0f})"
+        )
+    elif is_heavy_transformer:
+        # Conservative initial scale for transformer attention stability
+        scaler = amp.GradScaler(  # type: ignore[attr-defined]
+            "cuda", enabled=AMP_ENABLED, init_scale=1024.0,
+            growth_interval=2000,
+        )
+        logger.info(
+            f"  Phase {phase_name}: conservative GradScaler for transformer "
+            f"(init_scale=1024, growth_interval=2000)"
+        )
+    else:
+        scaler = amp.GradScaler("cuda", enabled=AMP_ENABLED)  # type: ignore[attr-defined]
 
     train_tracker = MetricTracker()
     val_tracker = MetricTracker()
@@ -325,6 +357,8 @@ def _run_phase(
         "lr": [],
     }
 
+    consecutive_nan_epochs = 0
+
     for epoch in range(1, epochs + 1):
         t0 = time.time()
 
@@ -342,11 +376,30 @@ def _run_phase(
         scheduler.step()
         elapsed = time.time() - t0
 
-        # ── Log ──────────────────────────────────────────────────────
+        # ── NaN epoch detection ──────────────────────────────────────
         train_loss = train_metrics.get("avg_loss", 0)
         val_loss = val_metrics.get("avg_loss", 0)
         val_acc = val_metrics.get("cls_accuracy", 0)
         val_miou = val_metrics.get("mean_iou", 0)
+
+        is_nan_epoch = (
+            train_loss == 0 and val_loss == 0
+        ) or np.isnan(float(val_loss)) or np.isnan(float(train_loss))
+
+        if is_nan_epoch:
+            consecutive_nan_epochs += 1
+            logger.warning(
+                f"  Phase {phase_name} epoch {epoch}: NaN/zero loss "
+                f"(consecutive: {consecutive_nan_epochs})"
+            )
+            if consecutive_nan_epochs >= 2:
+                logger.error(
+                    f"  Phase {phase_name}: {consecutive_nan_epochs} consecutive "
+                    f"NaN epochs -- aborting phase (likely FP16 overflow)"
+                )
+                break
+        else:
+            consecutive_nan_epochs = 0
         logger.info(
             f"  Phase {phase_name} epoch {epoch}/{epochs} "
             f"[{elapsed:.1f}s] -- "
@@ -397,7 +450,7 @@ def _run_phase(
 
     # Attach history to best_val_metrics for caller
     best_val_metrics["_epoch_history"] = epoch_history
-    return best_val_metrics
+    return best_val_metrics, scaler
 
 
 # ============================================================================
@@ -533,21 +586,31 @@ def train_v2_backbone(
         "phases": {},
     }
 
+    # Detect HEAVY-tier transformer backbones — they need special AMP
+    # handling to avoid FP16 overflow in self-attention layers.
+    _heavy_transformers = {
+        "CustomSwinTransformer", "CustomViTHybrid", "CustomCoAtNet",
+        "CustomMaxViT", "CustomDeiTStyle",
+    }
+    is_heavy_xfmr = backbone_name in _heavy_transformers
+
     # ================================================================
     #  PHASE A — Segmentation head training
     # ================================================================
-    phase_a_metrics = _run_phase(
+    phase_a_metrics, _ = _run_phase(
         "A", phase_a_cfg, model, loaders, ckpt_mgr,
         budget.grad_accum_steps, hard_sampler,
+        is_heavy_transformer=is_heavy_xfmr,
     )
     results["phases"]["A"] = phase_a_metrics
 
     # ================================================================
     #  PHASE B — Joint fine-tuning
     # ================================================================
-    phase_b_metrics = _run_phase(
+    phase_b_metrics, scaler_b = _run_phase(
         "B", phase_b_cfg, model, loaders, ckpt_mgr,
         budget.grad_accum_steps, hard_sampler,
+        is_heavy_transformer=is_heavy_xfmr,
     )
     results["phases"]["B"] = phase_b_metrics
 
@@ -567,9 +630,13 @@ def train_v2_backbone(
     # ================================================================
     #  PHASE C — Classification refinement
     # ================================================================
-    phase_c_metrics = _run_phase(
+    # Pass the calibrated scaler from Phase B to avoid fresh-scaler
+    # FP16 overflow in transformer attention (init_scale=65536 → NaN).
+    phase_c_metrics, _ = _run_phase(
         "C", phase_c_cfg, model, loaders, ckpt_mgr,
         budget.grad_accum_steps,
+        prev_scaler=scaler_b if is_heavy_xfmr else None,
+        is_heavy_transformer=is_heavy_xfmr,
     )
     results["phases"]["C"] = phase_c_metrics
 

@@ -136,7 +136,7 @@ class MemoryManager:
         protected_names: set[str] = set()
 
         for name, module in backbone.named_modules():
-            if module._forward_hooks:  # has registered forward hooks
+            if getattr(module, "_forward_hooks", None):  # has registered forward hooks
                 protected_names.add(name)
                 # Also protect all ancestors of the hooked module
                 parts = name.split(".")
@@ -162,22 +162,33 @@ class MemoryManager:
             if hasattr(module, "gradient_checkpointing_enable"):
                 module.gradient_checkpointing_enable()  # type: ignore[operator]
                 enabled = True
-            elif ("transformer" in name.lower() or "block" in name.lower()):
-                # Wrap forward with checkpoint
-                if hasattr(module, "forward") and not getattr(module, "_ckpt_wrapped", False):
-                    original_forward = module.forward
+            else:
+                # Check BOTH the module path name AND the class name for
+                # transformer/block patterns.  SwinTransformer's modules have
+                # paths like "layers.0.0" but class names like
+                # "SwinTransformerBlock", so checking only the path misses them.
+                class_name = type(module).__name__.lower()
+                path_name = name.lower()
+                is_ckpt_candidate = (
+                    "transformer" in path_name or "block" in path_name
+                    or "transformer" in class_name or "block" in class_name
+                )
+                if is_ckpt_candidate:
+                    # Wrap forward with checkpoint
+                    if hasattr(module, "forward") and not getattr(module, "_ckpt_wrapped", False):
+                        original_forward = module.forward
 
-                    def make_ckpt_forward(orig_fn):
-                        def ckpt_forward(*args, **kwargs):
-                            return ckpt_util.checkpoint(
-                                orig_fn, *args, use_reentrant=False, **kwargs
-                            )
-                        return ckpt_forward
+                        def make_ckpt_forward(orig_fn):
+                            def ckpt_forward(*args, **kwargs):
+                                return ckpt_util.checkpoint(
+                                    orig_fn, *args, use_reentrant=False, **kwargs
+                                )
+                            return ckpt_forward
 
-                    module.forward = make_ckpt_forward(original_forward)
-                    module._ckpt_wrapped = True  # type: ignore[assignment]
-                    wrapped_count += 1
-                    enabled = True
+                        module.forward = make_ckpt_forward(original_forward)
+                        module._ckpt_wrapped = True  # type: ignore[assignment]
+                        wrapped_count += 1
+                        enabled = True
 
         if enabled:
             logger.info(

@@ -1,11 +1,11 @@
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-13 (V2 Pipeline Rerun — Transformer Grad Checkpoint Fix + Plot Spacing Fix + Unicode Fix)  
+**Last Updated:** 2026-02-14 (V2 Run 2 Complete -- Deeper Transformer Fix Applied for Run 3)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
 **Current HEAD Commit Hash:** `d3e91a7` (fix(V2): replace Unicode symbols with ASCII for Windows cp1252 logging)  
-**Short One-Line HEALTH:** 🟡 **Yellow** — V2 pipeline rerun in progress (Phase 3 training, 1/15 backbones), 4 transformer backbones failed in Run 1, root cause fixed (gradient checkpoint hook corruption), all 15 retraining
+**Short One-Line HEALTH:** 🟡 **Yellow** -- V2 Run 2 complete: DeiTStyle fixed (93.31%), but SwinTransformer/ViTHybrid still crash in Phase C (FP16 overflow). Root cause diagnosed, deeper fix applied, Run 3 pending.
 
 ---
 
@@ -20,7 +20,9 @@
 | 3-Seg | V2 Pipeline Bug Fixes (OOM, tqdm, model_factory) | ✅ **COMPLETE** | 2026-02-11 |
 | 3-Seg | V2 Training Run 1 (Phases 0-6) | ✅ **COMPLETE** | 2026-02-13 |
 | 3-Seg | V2 Transformer Fix (Grad Ckpt + Plots + Unicode) | ✅ **COMPLETE** | 2026-02-13 |
-| 3-Seg | V2 Training Run 2 — Rerun (Phases 3-6) | 🟡 **IN PROGRESS** | - |
+| 3-Seg | V2 Training Run 2 -- Rerun (Phases 3-6) | ✅ **COMPLETE** | 2026-02-14 |
+| 3-Seg | V2 Deeper Transformer Fix (GradScaler + Ckpt Match) | ✅ **COMPLETE** | 2026-02-14 |
+| 3-Seg | V2 Training Run 3 -- Transformer Rerun | 🟡 **PENDING** | - |
 | 3B | Inference Server Hardening | 🔲 Not Started | - |
 | 4 | Deployment Discipline & Model Governance | 🔲 Not Started | - |
 | 5 | Continuous Validation & Production Safeguards | 🔲 Not Started | - |
@@ -31,14 +33,14 @@
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 1 completed (43 hours, all 7 phases). 11/15 backbones achieved 92-96% accuracy. **4 transformer backbones failed** due to gradient checkpoint hook corruption (SwinTransformer 4.71%, ViTHybrid 4.71%, CoAtNet 76%, MaxViT 79%). Root cause diagnosed and fixed. **Rerun in progress** (Phase 3 training, all 15 backbones retraining from scratch).
+- **Health Verdict:** V2 Run 2 completed (20 hours, Phases 3-6). **DeiTStyle FIXED** (4.71% -> 93.31%). 10 CNN backbones stable at 93-96%. **SwinTransformer and ViTHybrid still crash** to 4.71% in Phase C (FP16 overflow from fresh GradScaler). CoAtNet 77%, MaxViT 79% (intermittent FP16 instability). Deeper fix applied: GradScaler persistence across phases + conservative init_scale + grad checkpoint class-name matching + NaN scaler recovery.
 - **Top 3 Prioritized Actions:**
-  1. ~~**Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes**~~ ✅ **ALL COMPLETE**
-  2. ~~**V2 Run 1 Complete + Diagnosed**~~ ✅ 11/15 good, 4 transformer failures root-caused
-  3. ~~**V2 Transformer Fix**~~ ✅ Gradient checkpoint exclusion, NaN loss guard, plot spacing, Unicode logging
-  4. **V2 Training Run 2** — 🟡 Phase 3 retraining all 15 backbones with fixes applied
-  5. **Sprint 3B: Inference Server Hardening** — 🔲 After V2 Run 2 completes
-- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **19 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix)
+  1. ~~**Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes + Run 1 + Transformer Fix**~~ ✅ ALL COMPLETE
+  2. ~~**V2 Training Run 2**~~ ✅ DeiTStyle fixed, but Swin/ViTHybrid still broken in Phase C
+  3. ~~**V2 Deeper Transformer Fix**~~ ✅ GradScaler persistence + checkpoint matching + NaN recovery
+  4. **V2 Training Run 3** -- 🟡 Retrain only the 4 still-broken transformers with deeper fix
+  5. **Sprint 3B: Inference Server Hardening** -- After Run 3 completes
+- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **21 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix + 2 in deeper fix)
 
 ---
 
@@ -1295,12 +1297,29 @@ The project is production-ready with:
     - Ensemble stages 3-7, 9-12 SKIPPED due to missing OOF predictions from failed backbones
     - Stage 8 seg-weighted ensemble corrupted by NaN weights from broken transformers
 19. ✅ **Sprint 3-Seg: V2 Transformer Fix** (2026-02-13, commit `d3e91a7`, 7 files)
-    - **ROOT CAUSE:** Gradient checkpoint in `memory_manager.py` wrapped hooked modules (forward hooks fire twice during backprop recomputation → feature corruption → NaN loss → accuracy collapse)
+    - **ROOT CAUSE:** Gradient checkpoint in `memory_manager.py` wrapped hooked modules (forward hooks fire twice during backprop recomputation -> feature corruption -> NaN loss -> accuracy collapse)
     - **FIX:** Rewrote `apply_grad_checkpoint()` to build protected set of hooked modules + ancestors, excluding them from checkpoint wrapping
     - Added NaN/Inf loss guard in training loop (skip corrupted batches)
     - Fixed plot spacing/overlap for 13-class confusion matrices, ROC curves, per-class metrics
     - Fixed Unicode em-dash/symbol encoding errors in 4 logging files + added `encoding='utf-8'` to log file handlers
     - Deleted all 60 V2 checkpoint files (25 GB), launched full rerun of Phases 3-6
+20. ✅ **Sprint 3-Seg: V2 Training Run 2 Complete** (2026-02-14, 20 hours, Phases 3-6)
+    - **DeiTStyle FIXED:** 4.71% -> 93.31% (grad checkpoint exclusion fix worked!)
+    - **10 CNN backbones stable:** EfficientNetV4 93.12%, DenseNetHybrid 93.12%, InceptionV4 95.38%, MobileOne 94.16%, GhostNetV2 94.82%, ConvNeXt 93.69%, ResNetMish 94.16%, RegNet 95.19%, CSPDarkNet 95.85%, DynamicConvNet 95.57%
+    - **SwinTransformer STILL 4.71%** -- Phase A ok (84%), Phase B ok (87%), Phase C instant collapse (NaN from batch 24)
+    - **ViTHybrid STILL 4.71%** -- Phase A ok (90%), Phase B ok (90%), Phase C instant collapse (NaN from batch 40)
+    - **MaxViT still poor 78.51%** -- intermittent NaN throughout all phases
+    - **CoAtNet still poor 77.19%** -- intermittent NaN throughout all phases
+    - 16,904 NaN batch warnings total (all from SwinTransformer and ViTHybrid Phase C)
+    - Ensemble phases 4-6 completed successfully, exit code 1 from NaN in SwinTransformer ROC plot
+21. ✅ **Sprint 3-Seg: V2 Deeper Transformer Fix** (2026-02-14, 2 files)
+    - **NEW ROOT CAUSE:** Fresh `GradScaler(init_scale=65536)` created per phase causes FP16 overflow in transformer attention. Batch 24 = 3rd optimizer step with `grad_accum=8`. The high initial scale amplifies attention logits beyond FP16 range, corrupting all subsequent batches.
+    - **FIX 1:** GradScaler persistence -- Phase B's calibrated scaler (with safe scale value) is now passed to Phase C, preventing the fresh 65536 init_scale from causing overflow
+    - **FIX 2:** Conservative GradScaler for all HEAVY transformers -- `init_scale=1024`, `growth_interval=2000` (default is `init_scale=65536`, `growth_interval=2000`)
+    - **FIX 3:** Grad checkpoint module matching fixed -- now checks `type(module).__name__` in addition to module path. SwinTransformer: 0 -> 24 modules matched (class names like `SwinTransformerBlock` were missed because module paths are just `layers.0.0`)
+    - **FIX 4:** NaN scaler recovery -- on NaN loss detection, the GradScaler is proactively halved (scale/2) to recover from FP16 overflow instead of just skipping the batch
+    - **FIX 5:** NaN epoch abort -- if 2+ consecutive epochs produce all-NaN losses, phase is aborted early (prevents wasting hours on clearly broken training)
+    - Modified files: `train_v2_backbone.py` (GradScaler persistence + NaN recovery + epoch abort), `memory_manager.py` (class-name matching for grad checkpoint)
 
 ### Partial Items ⚠️
 
@@ -1351,13 +1370,15 @@ The project is production-ready with:
 | 5 | ~~**Sprint 3-Seg: V2 Bug Fixes**~~ | CUDA OOM, tqdm, model_factory, encoding | HIGH | ✅ DONE |
 | 6 | ~~**Sprint 3-Seg: V2 Training Run 1**~~ | 11/15 good (92-96%), 4 transformers failed | HIGH | ✅ DONE |
 | 7 | ~~**Sprint 3-Seg: V2 Transformer Fix**~~ | Grad checkpoint hook exclusion, NaN guard, plots, Unicode | HIGH | ✅ DONE |
-| 8 | **Sprint 3-Seg: V2 Training Run 2 (Rerun)** | All 15 backbones retraining with fixes, Phases 3-6 | HIGH | 🟡 RUNNING |
-| 9 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER TRAINING |
-| 10 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
-| 9 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
-| 10 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
-| 11 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
-| 12 | **Implement Android app** | Mobile deployment | MEDIUM | 🔲 PLANNED |
+| 8 | ~~**Sprint 3-Seg: V2 Training Run 2**~~ | DeiTStyle fixed (93.31%), Swin/ViTHybrid still broken | HIGH | ✅ DONE |
+| 9 | ~~**Sprint 3-Seg: V2 Deeper Transformer Fix**~~ | GradScaler persistence + ckpt matching + NaN recovery | HIGH | ✅ DONE |
+| 10 | **Sprint 3-Seg: V2 Training Run 3** | Retrain 4 broken transformers with deeper fix | HIGH | 🟡 PENDING |
+| 11 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER RUN 3 |
+| 12 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
+| 13 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
+| 14 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
+| 15 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
+| 16 | **Implement Android app** | Mobile deployment | MEDIUM | 🔲 PLANNED |
 
 **See [DISEASE_PIPELINE_5_SPRINT_PRODUCTION_PLAN.md](DISEASE_PIPELINE_5_SPRINT_PRODUCTION_PLAN.md) for detailed 5-sprint production roadmap.**
 
@@ -1626,7 +1647,9 @@ Get-ChildItem "Data\" -Recurse -File |
 | 2026-02-11 | 7e4c3eb | **V2 Bug Fixes** | CUDA OOM fix, tqdm progress, model_factory split, encoding fix (12 files, +373/-148) |
 | 2026-02-13 | *(completed)* | **V2 Run 1 Complete** | 43 hours, all 7 phases, 11/15 good (92-96%), 4 transformers failed |
 | 2026-02-13 | d3e91a7 | **V2 Transformer Fix** | Grad checkpoint hook exclusion, NaN guard, plot spacing, Unicode (7 files) |
-| 2026-02-13 | *(running)* | **V2 Run 2 (Rerun)** | Phases 3-6, all 15 backbones retraining from scratch with fixes |
+| 2026-02-14 | *(completed)* | **V2 Run 2 Complete** | 20 hours. DeiTStyle fixed (93.31%), Swin/ViTHybrid still 4.71%, MaxViT 79%, CoAtNet 77% |
+| 2026-02-14 | *(pending)* | **V2 Deeper Transformer Fix** | GradScaler persistence, checkpoint class-name matching, NaN recovery (2 files) |
+| 2026-02-14 | *(pending)* | **V2 Run 3 (Transformer Rerun)** | Retrain 4 broken transformers with deeper fix |
 
 #### Current State Summary (February 2026)
 
@@ -1642,16 +1665,20 @@ Get-ChildItem "Data\" -Recurse -File |
 | Model Storage | ~8 GB (checkpoints + exports) |
 | Git-tracked Files | 131+ |
 | V2 Segmentation Files | 70 (across 8 modules, +2 visualization files) |
-| V2 Bug Fix Files Modified | 19 total (12 in Run 1 + 7 in transformer fix) |
+| V2 Bug Fix Files Modified | 21 total (12 in Run 1 + 7 in transformer fix + 2 in deeper fix) |
 | V2 Run 1 Result | 11/15 good (92-96%), 4 transformers failed |
 | V2 Run 1 Best Backbone | CustomConvNeXt (95.38%) |
 | V2 Run 1 Failures | SwinTransformer (4.71%), ViTHybrid (4.71%), CoAtNet (76%), MaxViT (79%) |
-| V2 Failure Root Cause | Gradient checkpoint re-runs forward hooks → feature corruption |
+| V2 Run 1 Failure Root Cause | Gradient checkpoint re-runs forward hooks -> feature corruption |
+| V2 Run 2 Result | DeiTStyle FIXED (93.31%), 10 CNNs stable (93-96%), Swin/ViTHybrid still 4.71%, MaxViT 79%, CoAtNet 77% |
+| V2 Run 2 Best Backbone | CustomCSPDarkNet (95.85%) |
+| V2 Run 2 Root Cause (Phase C) | Fresh GradScaler init_scale=65536 -> FP16 overflow in transformer attention |
+| V2 Run 2 Fix Applied | GradScaler persistence (B->C), conservative init_scale=1024, class-name ckpt matching, NaN scaler recovery |
 | Tests Passing | 51 (+ 30 slow skipped) |
 | CI/CD Status | ✅ Fully Operational |
 | Ruff Lint Errors | 0 |
 | Pylance Type Errors | 0 |
-| V2 Pipeline Status | 🟡 Run 2 in progress (Phase 3 training, all 15 backbones retraining) |
+| V2 Pipeline Status | 🟡 Run 2 complete, deeper fix applied, Run 3 pending |
 | V2 Pipeline Errors | 0 |
 | GPU Memory (during run) | ~700 MiB / 24,570 MiB (2.9% utilization) |
 
@@ -1663,22 +1690,22 @@ Get-ChildItem "Data\" -Recurse -File |
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-13 (V2 Run 1 Complete — Transformer Fix — Run 2 In Progress)  
+**Last Updated:** 2026-02-14 (V2 Run 2 Complete -- Deeper Fix Applied -- Run 3 Pending)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
 **Current HEAD Commit Hash:** `d3e91a7`  
-**Short One-Line HEALTH:** 🟡 **Yellow** — V2 Run 2 in progress (all 15 backbones retraining), 4 transformer failures fixed
+**Short One-Line HEALTH:** Yellow -- V2 Run 2 complete, DeiTStyle fixed, deeper transformer fix applied, Run 3 pending
 
 ---
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 1 complete (43h). 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption). Fixed + retraining.
+- **Health Verdict:** V2 Run 2 complete (20h). DeiTStyle FIXED (93.31%). 10 CNNs stable (93-96%). Swin/ViTHybrid still crash Phase C (FP16 overflow). Deeper fix applied.
 - **Top 3 Prioritized Actions:**
-  1. ✅ Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes + Run 1 + Transformer Fix — ALL COMPLETE
-  2. 🟡 V2 Run 2 — Phase 3 training (all 15 backbones retraining with fixes)
-  3. V2 Ensemble & Validation — 12-stage pipeline (Phases 4-6, after training)
-- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 19 files modified across fixes; 0 Pylance errors
+  1. All Sprints through V2 Deeper Transformer Fix -- COMPLETE
+  2. V2 Run 3 -- Retrain 4 broken transformers with GradScaler persistence + ckpt matching fix
+  3. V2 Ensemble & Validation -- 12-stage pipeline (after Run 3)
+- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 21 files modified across fixes; 0 Pylance errors
 ```
 
 ---
@@ -1687,14 +1714,15 @@ Get-ChildItem "Data\" -Recurse -File |
 
 **Report Generated By:** Sugam Singh  
 *Full Path: `F:\DBT-Base-DIr\PROJECT_OVERSEER_REPORT_DISEASE.md`*  
-*Last Updated: 2026-02-13 (V2 Run 1 Complete — Transformer Fix Applied — Run 2 In Progress)*  
+*Last Updated: 2026-02-14 (V2 Run 2 Complete -- Deeper Transformer Fix Applied -- Run 3 Pending)*  
 *Total Files Analyzed: 390+ documented + 10,607 dataset images*  
 *Total Model Storage: ~8 GB (checkpoints + exports)*  
 *Total Training Data: 10,607 images (13 classes)*  
 *Total Tests Passing: 51 (+ 30 slow tests skipped by design)*  
 *V2 Segmentation Files: 70 Python files across 8 modules*  
-*V2 Bug Fix Files: 19 total (12 Run 1 fixes + 7 transformer fix)*  
+*V2 Bug Fix Files: 21 total (12 Run 1 fixes + 7 transformer fix + 2 deeper fix)*  
 *V2 Run 1: 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption)*  
-*V2 Run 2: 🟡 In progress — all 15 backbones retraining with fixes*  
+*V2 Run 2: DeiTStyle fixed (93.31%), Swin/ViTHybrid still 4.71% (FP16 overflow), MaxViT 79%, CoAtNet 77%*  
+*V2 Run 3: Pending -- deeper fix applied (GradScaler persistence + ckpt matching + NaN recovery)*  
 *CI Pipeline: ✅ Fully Operational (Ruff + Pyright + pytest + Docker)*  
 *Reference Document: [DISEASE_PIPELINE_NEXT_STEPS_PLAN.md](DISEASE_PIPELINE_NEXT_STEPS_PLAN.md)*
