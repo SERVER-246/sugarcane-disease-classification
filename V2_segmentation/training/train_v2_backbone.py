@@ -29,6 +29,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from V2_segmentation.config import (
+    AMP_DTYPE,
     AMP_ENABLED,
     BACKBONE_PROFILES,
     DEVICE,
@@ -140,7 +141,7 @@ def train_one_epoch(
         masks = batch["mask"].to(DEVICE, non_blocking=True)
         confidence = batch["confidence"].to(DEVICE, non_blocking=True)
 
-        with amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+        with amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             outputs = model(images)
             loss_dict = criterion(
                 cls_logits=outputs["cls_logits"],
@@ -151,19 +152,18 @@ def train_one_epoch(
             )
             loss = loss_dict["loss"]
 
-        # ── NaN guard: skip corrupted batches and scale down ──────────
+        # ── NaN guard: skip corrupted batches ─────────────────────────
         if torch.isnan(loss) or torch.isinf(loss):
             logger.warning(
                 f"  NaN/Inf loss detected at batch {batch_idx} -- skipping"
             )
             optimizer.zero_grad(set_to_none=True)
-            # Proactively halve the GradScaler to recover from FP16 overflow
-            current_scale = scaler.get_scale()
-            if current_scale > 1.0:
-                scaler.update(new_scale=max(current_scale / 2.0, 1.0))
             continue
 
-        # Scale loss for gradient accumulation
+        # Scale loss for gradient accumulation and backward
+        # NOTE: With BF16, GradScaler is disabled (no-op).  We still call
+        # scaler.scale() etc. so the code works if AMP_DTYPE is changed
+        # back to float16, but with BF16 these are pass-throughs.
         scaled_loss = MemoryManager.scale_loss(loss, grad_accum_steps)
         scaler.scale(scaled_loss).backward()
 
@@ -225,7 +225,7 @@ def validate_one_epoch(
         masks = batch["mask"].to(DEVICE, non_blocking=True)
         confidence = batch["confidence"].to(DEVICE, non_blocking=True)
 
-        with amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+        with amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             outputs = model(images)
             loss_dict = criterion(
                 cls_logits=outputs["cls_logits"],
@@ -258,17 +258,12 @@ def _run_phase(
     ckpt_mgr: CheckpointManager,
     grad_accum_steps: int = 1,
     hard_sampler: HardExampleSampler | None = None,
-    prev_scaler: amp.GradScaler | None = None,  # type: ignore[name-defined]
-    is_heavy_transformer: bool = False,
 ) -> tuple[dict[str, Any], amp.GradScaler]:  # type: ignore[name-defined]
     """Train a single phase (A, B, or C).
 
     Returns
     -------
     Tuple of (best validation metrics dict, GradScaler) for this phase.
-    The scaler is returned so it can be passed to the next phase, avoiding
-    FP16 overflow when a fresh scaler's init_scale=65536 interacts with
-    transformer attention in Phase C.
     """
     logger.info(f"{'='*60}")
     logger.info(f"  Phase {phase_name} -- {phase_cfg.get('_desc', '')}")
@@ -303,34 +298,25 @@ def _run_phase(
     )
     if not param_groups:
         logger.warning(f"  Phase {phase_name}: no trainable parameters -- skipping")
-        dummy_scaler = amp.GradScaler("cuda", enabled=AMP_ENABLED)  # type: ignore[attr-defined]
+        _scaler_enabled = AMP_DTYPE == torch.float16
+        dummy_scaler = amp.GradScaler("cuda", enabled=_scaler_enabled)  # type: ignore[attr-defined]
         return {}, dummy_scaler
 
     optimizer = AdamW(param_groups)
     scheduler = _create_scheduler(optimizer, epochs)
 
-    # ── GradScaler: reuse previous or create fresh ───────────────────
-    # For HEAVY-tier transformers, a fresh GradScaler (init_scale=65536)
-    # causes FP16 overflow in attention layers.  Reuse the calibrated
-    # scaler from the previous phase, or start with a conservative scale.
-    if prev_scaler is not None:
-        scaler = prev_scaler
-        logger.info(
-            f"  Phase {phase_name}: reusing GradScaler from previous phase "
-            f"(scale={scaler.get_scale():.0f})"
-        )
-    elif is_heavy_transformer:
-        # Conservative initial scale for transformer attention stability
-        scaler = amp.GradScaler(  # type: ignore[attr-defined]
-            "cuda", enabled=AMP_ENABLED, init_scale=1024.0,
-            growth_interval=2000,
-        )
-        logger.info(
-            f"  Phase {phase_name}: conservative GradScaler for transformer "
-            f"(init_scale=1024, growth_interval=2000)"
-        )
+    # ── GradScaler: DISABLED with BFloat16 ────────────────────────────
+    # BFloat16 has the same dynamic range as FP32 (8-bit exponent), so
+    # loss scaling is unnecessary.  GradScaler with FP16 caused NaN in
+    # ALL backbones: the scale factor amplified seg-decoder gradients
+    # flowing backward through hooks, overflowing FP16 in the backbone.
+    # With BF16 the scaler is a no-op pass-through.
+    _scaler_enabled = AMP_DTYPE == torch.float16  # Only enable for FP16
+    scaler = amp.GradScaler("cuda", enabled=_scaler_enabled)  # type: ignore[attr-defined]
+    if not _scaler_enabled:
+        logger.info(f"  Phase {phase_name}: BF16 mode -- GradScaler disabled")
     else:
-        scaler = amp.GradScaler("cuda", enabled=AMP_ENABLED)  # type: ignore[attr-defined]
+        logger.info(f"  Phase {phase_name}: FP16 mode -- GradScaler enabled")
 
     train_tracker = MetricTracker()
     val_tracker = MetricTracker()
@@ -398,6 +384,21 @@ def _run_phase(
                     f"NaN epochs -- aborting phase (likely FP16 overflow)"
                 )
                 break
+            # Skip checkpoint save and early-stop tracking for NaN epochs
+            # to avoid persisting corrupted model states.
+            logger.info(
+                f"  Phase {phase_name} epoch {epoch}/{epochs} "
+                f"[{elapsed:.1f}s] -- "
+                f"train_loss={train_loss:.4f}  val_loss={val_loss:.4f}  "
+                f"val_acc={val_acc:.4f}  val_mIoU={val_miou:.4f}"
+            )
+            epoch_history["train_loss"].append(float(train_loss))
+            epoch_history["val_loss"].append(float(val_loss))
+            epoch_history["val_acc"].append(float(val_acc))
+            epoch_history["val_mIoU"].append(float(val_miou))
+            current_lr = optimizer.param_groups[0]["lr"]
+            epoch_history["lr"].append(float(current_lr))
+            continue
         else:
             consecutive_nan_epochs = 0
         logger.info(
@@ -586,31 +587,21 @@ def train_v2_backbone(
         "phases": {},
     }
 
-    # Detect HEAVY-tier transformer backbones — they need special AMP
-    # handling to avoid FP16 overflow in self-attention layers.
-    _heavy_transformers = {
-        "CustomSwinTransformer", "CustomViTHybrid", "CustomCoAtNet",
-        "CustomMaxViT", "CustomDeiTStyle",
-    }
-    is_heavy_xfmr = backbone_name in _heavy_transformers
-
     # ================================================================
     #  PHASE A — Segmentation head training
     # ================================================================
     phase_a_metrics, _ = _run_phase(
         "A", phase_a_cfg, model, loaders, ckpt_mgr,
         budget.grad_accum_steps, hard_sampler,
-        is_heavy_transformer=is_heavy_xfmr,
     )
     results["phases"]["A"] = phase_a_metrics
 
     # ================================================================
     #  PHASE B — Joint fine-tuning
     # ================================================================
-    phase_b_metrics, scaler_b = _run_phase(
+    phase_b_metrics, _ = _run_phase(
         "B", phase_b_cfg, model, loaders, ckpt_mgr,
         budget.grad_accum_steps, hard_sampler,
-        is_heavy_transformer=is_heavy_xfmr,
     )
     results["phases"]["B"] = phase_b_metrics
 
@@ -630,13 +621,9 @@ def train_v2_backbone(
     # ================================================================
     #  PHASE C — Classification refinement
     # ================================================================
-    # Pass the calibrated scaler from Phase B to avoid fresh-scaler
-    # FP16 overflow in transformer attention (init_scale=65536 → NaN).
     phase_c_metrics, _ = _run_phase(
         "C", phase_c_cfg, model, loaders, ckpt_mgr,
         budget.grad_accum_steps,
-        prev_scaler=scaler_b if is_heavy_xfmr else None,
-        is_heavy_transformer=is_heavy_xfmr,
     )
     results["phases"]["C"] = phase_c_metrics
 
@@ -688,7 +675,7 @@ def _collect_val_predictions(
         images = batch["image"].to(DEVICE, non_blocking=True)
         labels = batch["label"].to(DEVICE, non_blocking=True)
 
-        with amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+        with amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             outputs = model(images)
 
         probs = F.softmax(outputs["cls_logits"], dim=1).cpu().numpy()

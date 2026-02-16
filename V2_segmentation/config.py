@@ -41,7 +41,13 @@ DEBUG_DIR = BASE_DIR / "debug_logs"
 # ============================================================================
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-AMP_ENABLED = True  # FP16 mixed precision
+AMP_ENABLED = True  # Mixed precision training
+# BFloat16 has the same dynamic range as FP32 (8-bit exponent) but with
+# reduced precision (8-bit mantissa vs 23-bit).  This eliminates FP16
+# overflow in the seg-decoder backward path through hooks, which caused
+# NaN gradients in ALL backbones with GradScaler loss amplification.
+# Requires compute capability >= 8.0 (Ampere / Ada Lovelace).
+AMP_DTYPE = torch.bfloat16
 VRAM_TOTAL_GB = 24.0
 VRAM_HEADROOM_GB = 2.0  # Reserved for OS/driver
 VRAM_SAFE_LIMIT_GB = VRAM_TOTAL_GB - VRAM_HEADROOM_GB  # 22.0 GB

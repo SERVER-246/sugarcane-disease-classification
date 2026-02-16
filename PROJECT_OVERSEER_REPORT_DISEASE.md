@@ -1,11 +1,11 @@
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-14 (V2 Run 2 Complete -- Deeper Transformer Fix Applied for Run 3)  
+**Last Updated:** 2026-02-16 (V2 BFloat16 Core Fix Applied -- Full Clean Rerun (Run 4) Pending)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `d3e91a7` (fix(V2): replace Unicode symbols with ASCII for Windows cp1252 logging)  
-**Short One-Line HEALTH:** 🟡 **Yellow** -- V2 Run 2 complete: DeiTStyle fixed (93.31%), but SwinTransformer/ViTHybrid still crash in Phase C (FP16 overflow). Root cause diagnosed, deeper fix applied, Run 3 pending.
+**Current HEAD Commit Hash:** `7b17617` (fix(V2): deeper transformer fix -- GradScaler persistence + checkpoint class-name matching)  
+**Short One-Line HEALTH:** 🟡 **Yellow** -- V2 core NaN root cause resolved: FP16+GradScaler overflow affects ALL 15 backbones in seg backward. Switched entire pipeline to BFloat16 (no GradScaler needed). Fixed attention pre-scale + double-residual in MaxViT/CoAtNet. All V2 artifacts cleaned, full Run 4 pending.
 
 ---
 
@@ -22,7 +22,11 @@
 | 3-Seg | V2 Transformer Fix (Grad Ckpt + Plots + Unicode) | ✅ **COMPLETE** | 2026-02-13 |
 | 3-Seg | V2 Training Run 2 -- Rerun (Phases 3-6) | ✅ **COMPLETE** | 2026-02-14 |
 | 3-Seg | V2 Deeper Transformer Fix (GradScaler + Ckpt Match) | ✅ **COMPLETE** | 2026-02-14 |
-| 3-Seg | V2 Training Run 3 -- Transformer Rerun | 🟡 **PENDING** | - |
+| 3-Seg | V2 Training Run 3 -- Transformer Rerun | ✅ **COMPLETE** | 2026-02-15 |
+| 3-Seg | V2 Run 3 Analysis + Universal NaN Discovery | ✅ **COMPLETE** | 2026-02-16 |
+| 3-Seg | V2 BFloat16 Core Fix (6 files, all backbones) | ✅ **COMPLETE** | 2026-02-16 |
+| 3-Seg | V2 Base_backbones.py Attention + Residual Fix | ✅ **COMPLETE** | 2026-02-16 |
+| 3-Seg | V2 Training Run 4 -- Full Clean Rerun (all 15) | 🟡 **PENDING** | - |
 | 3B | Inference Server Hardening | 🔲 Not Started | - |
 | 4 | Deployment Discipline & Model Governance | 🔲 Not Started | - |
 | 5 | Continuous Validation & Production Safeguards | 🔲 Not Started | - |
@@ -33,14 +37,12 @@
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 2 completed (20 hours, Phases 3-6). **DeiTStyle FIXED** (4.71% -> 93.31%). 10 CNN backbones stable at 93-96%. **SwinTransformer and ViTHybrid still crash** to 4.71% in Phase C (FP16 overflow from fresh GradScaler). CoAtNet 77%, MaxViT 79% (intermittent FP16 instability). Deeper fix applied: GradScaler persistence across phases + conservative init_scale + grad checkpoint class-name matching + NaN scaler recovery.
+- **Health Verdict:** V2 Run 3 completed (Phases 3-6): SwinTransformer 87.09% ✅ FIXED, ViTHybrid 90.29% ✅ FIXED, MaxViT 77.47% still weak, CoAtNet 75.68% still weak. **Deep analysis revealed UNIVERSAL NaN root cause:** GradScaler+FP16 overflow in seg decoder backward path affects ALL 15 backbones (not just transformers). Switched entire pipeline to **BFloat16** (8-bit exponent, same range as FP32). Fixed attention pre-multiply scale + FP32 attention matmul + double-residual removal in MaxViT/CoAtNet. All V2 artifacts cleaned, full Run 4 pending.
 - **Top 3 Prioritized Actions:**
-  1. ~~**Sprint 1-3A + 3-Seg Infrastructure + Bug Fixes + Run 1 + Transformer Fix**~~ ✅ ALL COMPLETE
-  2. ~~**V2 Training Run 2**~~ ✅ DeiTStyle fixed, but Swin/ViTHybrid still broken in Phase C
-  3. ~~**V2 Deeper Transformer Fix**~~ ✅ GradScaler persistence + checkpoint matching + NaN recovery
-  4. **V2 Training Run 3** -- 🟡 Retrain only the 4 still-broken transformers with deeper fix
-  5. **Sprint 3B: Inference Server Hardening** -- After Run 3 completes
-- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **21 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix + 2 in deeper fix)
+  1. ~~**All Sprints through V2 BFloat16 Core Fix**~~ ✅ ALL COMPLETE
+  2. **V2 Training Run 4** -- 🟡 Full clean rerun of all 15 backbones with BF16 pipeline
+  3. **Sprint 3B: Inference Server Hardening** -- After Run 4 completes
+- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **27 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix)
 
 ---
 
@@ -959,7 +961,7 @@ CI/CD infrastructure fully configured:
 
 ## CURRENT STATUS & TECHNICAL DEBT
 
-### Overall Health: 🟢 **Green**
+### Overall Health: � **Yellow** (BF16 fix applied, Run 4 pending)
 
 The project is production-ready with:
 - ✅ All 15 backbone models trained
@@ -1321,6 +1323,64 @@ The project is production-ready with:
     - **FIX 5:** NaN epoch abort -- if 2+ consecutive epochs produce all-NaN losses, phase is aborted early (prevents wasting hours on clearly broken training)
     - Modified files: `train_v2_backbone.py` (GradScaler persistence + NaN recovery + epoch abort), `memory_manager.py` (class-name matching for grad checkpoint)
 
+22. ✅ **Sprint 3-Seg: V2 Training Run 3 Complete** (2026-02-15, Phases 3-6, 4 transformers only)
+    - **SwinTransformer FIXED:** 4.71% -> **87.09%** ✅ (GradScaler persistence + checkpoint matching worked)
+    - **ViTHybrid FIXED:** 4.71% -> **90.29%** ✅ (GradScaler persistence + checkpoint matching worked)
+    - **MaxViT still weak: 77.47%** ⚠️ (intermittent NaN in Phase A, never recovered)
+    - **CoAtNet still weak: 75.68%** ⚠️ (intermittent NaN in Phase A, never recovered)
+    - All 4 completed all phases (exit code 0), no Phase C collapse
+    - Ensemble phases 4-6 completed successfully
+
+23. ✅ **Sprint 3-Seg: V2 Run 3 Analysis -- Universal NaN Discovery** (2026-02-16)
+    - **Deep investigation** of MaxViT/CoAtNet weakness revealed the NaN problem is UNIVERSAL:
+    - **Systematic test**: Isolated cls_logits backward vs seg_logits backward for each backbone:
+      - `cls_logits only backward`: 0 NaN params ✅ (all backbones)
+      - `seg_logits only backward`: NaN in majority of params ❌ (ALL backbones)
+      - ConvNeXt: 159/159 backbone params NaN from seg backward
+      - DeiTStyle: 10/10 backbone params NaN from seg backward
+      - MaxViT: 225/225 backbone params NaN from seg backward
+      - CoAtNet: 206/206 backbone params NaN from seg backward
+    - **Without GradScaler**: 0 NaN in both cls and seg backward paths (ALL backbones) ✅
+    - **Root Cause**: `GradScaler` (init_scale=1024-65536) multiplies loss before backward. When seg loss gradients flow backward through hook-captured features into deep backbone layers, the amplified gradients overflow FP16 range (~65504 max). This is NOT backbone-specific -- it's a universal pipeline-level issue.
+    - **Why MaxViT/CoAtNet were worse**: Deeper transformer chains (203/254 grad-checkpoint modules) + double residual amplifying activations + sporadic NaN corruption accumulating across epochs → corrupted weight checkpoints carried to subsequent phases
+    - **Why CNNs appeared fine**: Phase A freezes backbone (no seg grads flow there), Phase C has lambda_seg=0 (no seg loss). Phase B's joint loss (0.4*seg + 0.6*cls) somewhat mitigated the overflow, and CNN attention ranges are naturally smaller than transformer softmax attention.
+
+24. ✅ **Sprint 3-Seg: V2 BFloat16 Core Fix** (2026-02-16, 6 files)
+    - **Solution**: Switch from FP16 + GradScaler to **BFloat16** (no GradScaler needed)
+    - **Why BF16**: 8-bit exponent (same dynamic range as FP32, max ~3.4×10³⁸) vs FP16's 5-bit exponent (max ~65504). Overflow is impossible → GradScaler unnecessary → disabled as no-op pass-through.
+    - **GPU Compatibility**: RTX 4500 Ada (compute capability 8.9) fully supports BF16 natively.
+    - **Files Modified (6):**
+
+    | File | Change | Impact |
+    |------|--------|--------|
+    | `V2_segmentation/config.py` | Added `AMP_DTYPE = torch.bfloat16` | Central config for all files |
+    | `V2_segmentation/training/train_v2_backbone.py` | All `autocast(dtype=AMP_DTYPE)`, GradScaler disabled for BF16, removed `prev_scaler`/`is_heavy_transformer` params, simplified `_run_phase` signature | Core training loop |
+    | `V2_segmentation/evaluation/oof_generator.py` | BF16 autocast + disabled scaler | OOF prediction generation |
+    | `V2_segmentation/ensemble_v2/stage1_individual_v2.py` | BF16 autocast in inference loop | Ensemble stage 1 |
+    | `V2_segmentation/scripts/smoke_training_pipeline.py` | BF16 autocast + disabled scaler | Smoke tests |
+    | `Base_backbones.py` | Pre-multiply attention scale, FP32 attention matmul, double-residual removal | Architecture fixes |
+
+    - **Verification**: End-to-end test confirmed **0 NaN gradients** for both MaxViT and CoAtNet in both cls AND seg backward paths with BF16.
+
+25. ✅ **Sprint 3-Seg: V2 Base_backbones.py Architecture Fixes** (2026-02-16, 1 file)
+    - **Fix 1 -- Pre-multiply attention scale**: Changed `MultiHeadSelfAttention.forward()` from POST-multiply `(q @ k.T) * scale` to PRE-multiply `q = q * self.scale` then `attn = q @ k.T`. Prevents intermediate overflow in the Q·K^T product.
+    - **Fix 2 -- FP32 attention matmul**: `attn = (q.float() @ k.float().transpose(-2,-1)).to(q.dtype)`. Casts Q,K to FP32 for the matmul to avoid any remaining precision issues, then casts back.
+    - **Fix 3 -- Double residual removal in CustomMaxViT**: `stage2_attn` and `stage3_transformer` loops had `x_seq = x_seq + attn_block(x_seq)`, but `TransformerEncoderBlockWithLayerScale` already has internal residual `x = x + gamma * attn(norm(x))`. This caused double residual `2x + gamma*attn(x)` which amplified activations. Changed to `x_seq = attn_block(x_seq)` (matching working DeiTStyle pattern).
+    - **Fix 4 -- Double residual removal in CustomCoAtNet**: Same pattern as MaxViT -- removed outer residual from `stage2_attn_blocks` and `stage3_transformer` loops.
+    - **Evidence**: DeiTStyle (93.31%) already uses `x = block(x)` without outer residual -- this is the correct pattern since `TransformerEncoderBlockWithLayerScale` has its own internal residual connection.
+
+26. ✅ **Sprint 3-Seg: V2 Full Artifact Cleanup** (2026-02-16)
+    - Deleted ALL V2 training artifacts for clean Run 4:
+      - 60 `.pth` checkpoint files
+      - 32 `.json` history/metadata files
+      - 15 `.npz` evaluation files
+      - 58 plots in `plots_metrics_v2/`
+      - 96 ensemble files in `checkpoints_v2/ensembles_v2/`
+      - 6 evaluation files
+      - `pipeline_v2_report.json`, `v2_pipeline.log`
+      - 4 debug scripts (`test_fixes.py`, `debug_seg_nan.py`, `debug_compare.py`, `debug_training_step.py`)
+    - Pipeline skips backbones with existing `*_v2_final.pth` → ALL must be deleted for clean rerun.
+
 ### Partial Items ⚠️
 
 1. ~~**Documentation scattered**~~ ✅ **RESOLVED** — Consolidated in PROJECT_SUMMARY.md and EVOLUTION.md
@@ -1372,13 +1432,16 @@ The project is production-ready with:
 | 7 | ~~**Sprint 3-Seg: V2 Transformer Fix**~~ | Grad checkpoint hook exclusion, NaN guard, plots, Unicode | HIGH | ✅ DONE |
 | 8 | ~~**Sprint 3-Seg: V2 Training Run 2**~~ | DeiTStyle fixed (93.31%), Swin/ViTHybrid still broken | HIGH | ✅ DONE |
 | 9 | ~~**Sprint 3-Seg: V2 Deeper Transformer Fix**~~ | GradScaler persistence + ckpt matching + NaN recovery | HIGH | ✅ DONE |
-| 10 | **Sprint 3-Seg: V2 Training Run 3** | Retrain 4 broken transformers with deeper fix | HIGH | 🟡 PENDING |
-| 11 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER RUN 3 |
-| 12 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
-| 13 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
-| 14 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
-| 15 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
-| 16 | **Implement Android app** | Mobile deployment | MEDIUM | 🔲 PLANNED |
+| 10 | ~~**Sprint 3-Seg: V2 Training Run 3**~~ | Swin 87%, ViTHybrid 90% fixed. MaxViT 77%, CoAtNet 76% still weak | HIGH | ✅ DONE |
+| 11 | ~~**Sprint 3-Seg: V2 BFloat16 Core Fix**~~ | Universal NaN root cause: FP16+GradScaler overflow in seg backward | HIGH | ✅ DONE |
+| 12 | ~~**Sprint 3-Seg: V2 Architecture Fix**~~ | Pre-multiply attention scale, FP32 matmul, double-residual removal | HIGH | ✅ DONE |
+| 13 | **Sprint 3-Seg: V2 Training Run 4** | Full clean rerun of all 15 backbones with BF16 pipeline | HIGH | 🟡 PENDING |
+| 14 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER RUN 4 |
+| 15 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
+| 16 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
+| 17 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
+| 18 | **Fix ensemble plot labels** | Use actual class names in stages 4-7 | LOW | 🐛 BUG |
+| 19 | **Implement Android app** | Mobile deployment | MEDIUM | 🔲 PLANNED |
 
 **See [DISEASE_PIPELINE_5_SPRINT_PRODUCTION_PLAN.md](DISEASE_PIPELINE_5_SPRINT_PRODUCTION_PLAN.md) for detailed 5-sprint production roadmap.**
 
@@ -1489,7 +1552,7 @@ python -m pytest tests/ -v --cov=src --cov-report=html
 | Head training | Training only the classifier layer with frozen backbone |
 | Fine-tuning | Training entire model with unfrozen backbone |
 | K-Fold CV | Cross-validation with K=5 stratified folds |
-| AMP | Automatic Mixed Precision (FP16/FP32) |
+| AMP | Automatic Mixed Precision (BFloat16 for V2, FP16/FP32 for V1) |
 | ONNX | Open Neural Network Exchange format |
 | TorchScript | PyTorch's serialization format for deployment |
 | MoE | Mixture of Experts |
@@ -1648,8 +1711,13 @@ Get-ChildItem "Data\" -Recurse -File |
 | 2026-02-13 | *(completed)* | **V2 Run 1 Complete** | 43 hours, all 7 phases, 11/15 good (92-96%), 4 transformers failed |
 | 2026-02-13 | d3e91a7 | **V2 Transformer Fix** | Grad checkpoint hook exclusion, NaN guard, plot spacing, Unicode (7 files) |
 | 2026-02-14 | *(completed)* | **V2 Run 2 Complete** | 20 hours. DeiTStyle fixed (93.31%), Swin/ViTHybrid still 4.71%, MaxViT 79%, CoAtNet 77% |
-| 2026-02-14 | *(pending)* | **V2 Deeper Transformer Fix** | GradScaler persistence, checkpoint class-name matching, NaN recovery (2 files) |
-| 2026-02-14 | *(pending)* | **V2 Run 3 (Transformer Rerun)** | Retrain 4 broken transformers with deeper fix |
+| 2026-02-14 | 7b17617 | **V2 Deeper Transformer Fix** | GradScaler persistence, checkpoint class-name matching, NaN recovery (2 files) |
+| 2026-02-15 | *(completed)* | **V2 Run 3 Complete** | Swin 87.09% ✅, ViTHybrid 90.29% ✅, MaxViT 77.47% ⚠️, CoAtNet 75.68% ⚠️ |
+| 2026-02-16 | *(applied)* | **V2 Universal NaN Discovery** | GradScaler+FP16 overflow affects ALL 15 backbones in seg backward (not just transformers) |
+| 2026-02-16 | *(applied)* | **V2 BFloat16 Core Fix** | Switched to BF16 across 6 files: config, trainer, OOF, ensemble, smoke, Base_backbones |
+| 2026-02-16 | *(applied)* | **V2 Architecture Fix** | Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet |
+| 2026-02-16 | *(applied)* | **V2 Full Artifact Cleanup** | Deleted all 261 V2 artifacts (60 pth, 32 json, 15 npz, 58 plots, 96 ensemble) |
+| 2026-02-16 | *(pending)* | **V2 Run 4 (Full Clean Rerun)** | All 15 backbones from scratch with BF16 pipeline |
 
 #### Current State Summary (February 2026)
 
@@ -1665,22 +1733,23 @@ Get-ChildItem "Data\" -Recurse -File |
 | Model Storage | ~8 GB (checkpoints + exports) |
 | Git-tracked Files | 131+ |
 | V2 Segmentation Files | 70 (across 8 modules, +2 visualization files) |
-| V2 Bug Fix Files Modified | 21 total (12 in Run 1 + 7 in transformer fix + 2 in deeper fix) |
+| V2 Bug Fix Files Modified | 27 total (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix) |
 | V2 Run 1 Result | 11/15 good (92-96%), 4 transformers failed |
 | V2 Run 1 Best Backbone | CustomConvNeXt (95.38%) |
-| V2 Run 1 Failures | SwinTransformer (4.71%), ViTHybrid (4.71%), CoAtNet (76%), MaxViT (79%) |
-| V2 Run 1 Failure Root Cause | Gradient checkpoint re-runs forward hooks -> feature corruption |
-| V2 Run 2 Result | DeiTStyle FIXED (93.31%), 10 CNNs stable (93-96%), Swin/ViTHybrid still 4.71%, MaxViT 79%, CoAtNet 77% |
+| V2 Run 2 Result | DeiTStyle FIXED (93.31%), 10 CNNs stable (93-96%), Swin/ViTHybrid still 4.71% |
 | V2 Run 2 Best Backbone | CustomCSPDarkNet (95.85%) |
-| V2 Run 2 Root Cause (Phase C) | Fresh GradScaler init_scale=65536 -> FP16 overflow in transformer attention |
-| V2 Run 2 Fix Applied | GradScaler persistence (B->C), conservative init_scale=1024, class-name ckpt matching, NaN scaler recovery |
+| V2 Run 3 Result | Swin 87.09% ✅, ViTHybrid 90.29% ✅, MaxViT 77.47% ⚠️, CoAtNet 75.68% ⚠️ |
+| V2 Run 3 Root Cause (Universal) | GradScaler+FP16 overflow in seg decoder backward path affects ALL 15 backbones |
+| V2 BF16 Fix | Switched to BFloat16 (8-bit exponent, no GradScaler needed) across 6 files |
+| V2 Architecture Fix | Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet |
+| V2 Run 4 | PENDING -- full clean rerun of all 15 backbones with BF16 pipeline |
 | Tests Passing | 51 (+ 30 slow skipped) |
 | CI/CD Status | ✅ Fully Operational |
 | Ruff Lint Errors | 0 |
 | Pylance Type Errors | 0 |
-| V2 Pipeline Status | 🟡 Run 2 complete, deeper fix applied, Run 3 pending |
+| V2 Pipeline Status | 🟡 BF16 core fix applied, all artifacts cleaned, Run 4 pending |
 | V2 Pipeline Errors | 0 |
-| GPU Memory (during run) | ~700 MiB / 24,570 MiB (2.9% utilization) |
+| GPU | NVIDIA RTX 4500 Ada, 24GB VRAM, Compute 8.9, BF16 native support |
 
 ---
 
@@ -1690,22 +1759,22 @@ Get-ChildItem "Data\" -Recurse -File |
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-14 (V2 Run 2 Complete -- Deeper Fix Applied -- Run 3 Pending)  
+**Last Updated:** 2026-02-16 (V2 BFloat16 Core Fix Applied -- Full Clean Rerun (Run 4) Pending)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `d3e91a7`  
-**Short One-Line HEALTH:** Yellow -- V2 Run 2 complete, DeiTStyle fixed, deeper transformer fix applied, Run 3 pending
+**Current HEAD Commit Hash:** `7b17617`  
+**Short One-Line HEALTH:** Yellow -- Universal NaN root cause resolved (BF16 fix), architecture fixes applied, Run 4 pending
 
 ---
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 2 complete (20h). DeiTStyle FIXED (93.31%). 10 CNNs stable (93-96%). Swin/ViTHybrid still crash Phase C (FP16 overflow). Deeper fix applied.
+- **Health Verdict:** V2 Run 3 complete. Swin 87%, ViTHybrid 90% FIXED. Universal NaN root cause discovered: GradScaler+FP16 overflow in seg backward affects ALL 15 backbones. Switched to BFloat16. Architecture fixes applied (attention pre-scale, double-residual removal). All artifacts cleaned, Run 4 pending.
 - **Top 3 Prioritized Actions:**
-  1. All Sprints through V2 Deeper Transformer Fix -- COMPLETE
-  2. V2 Run 3 -- Retrain 4 broken transformers with GradScaler persistence + ckpt matching fix
-  3. V2 Ensemble & Validation -- 12-stage pipeline (after Run 3)
-- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 21 files modified across fixes; 0 Pylance errors
+  1. All Sprints through V2 BFloat16 Core Fix -- COMPLETE
+  2. V2 Run 4 -- Full clean rerun of all 15 backbones with BF16 pipeline
+  3. Sprint 3B: Inference Server Hardening -- After Run 4
+- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 27 files modified across fixes; 0 Pylance errors
 ```
 
 ---
@@ -1714,15 +1783,18 @@ Get-ChildItem "Data\" -Recurse -File |
 
 **Report Generated By:** Sugam Singh  
 *Full Path: `F:\DBT-Base-DIr\PROJECT_OVERSEER_REPORT_DISEASE.md`*  
-*Last Updated: 2026-02-14 (V2 Run 2 Complete -- Deeper Transformer Fix Applied -- Run 3 Pending)*  
+*Last Updated: 2026-02-16 (V2 BFloat16 Core Fix Applied -- Full Clean Rerun (Run 4) Pending)*  
 *Total Files Analyzed: 390+ documented + 10,607 dataset images*  
 *Total Model Storage: ~8 GB (checkpoints + exports)*  
 *Total Training Data: 10,607 images (13 classes)*  
 *Total Tests Passing: 51 (+ 30 slow tests skipped by design)*  
 *V2 Segmentation Files: 70 Python files across 8 modules*  
-*V2 Bug Fix Files: 21 total (12 Run 1 fixes + 7 transformer fix + 2 deeper fix)*  
+*V2 Bug Fix Files: 27 total (12 Run 1 fixes + 7 transformer fix + 2 deeper fix + 6 BF16 core fix)*  
 *V2 Run 1: 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption)*  
 *V2 Run 2: DeiTStyle fixed (93.31%), Swin/ViTHybrid still 4.71% (FP16 overflow), MaxViT 79%, CoAtNet 77%*  
-*V2 Run 3: Pending -- deeper fix applied (GradScaler persistence + ckpt matching + NaN recovery)*  
-*CI Pipeline: ✅ Fully Operational (Ruff + Pyright + pytest + Docker)*  
+*V2 Run 3: Swin 87.09% FIXED, ViTHybrid 90.29% FIXED, MaxViT 77.47%, CoAtNet 75.68%*  
+*V2 BF16 Fix: Universal NaN root cause resolved -- switched FP16+GradScaler to BFloat16 across 6 files*  
+*V2 Architecture Fix: Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet*  
+*V2 Run 4: PENDING -- full clean rerun of all 15 backbones with BF16 pipeline*  
+*CI Pipeline: \u2705 Fully Operational (Ruff + Pyright + pytest + Docker)*  
 *Reference Document: [DISEASE_PIPELINE_NEXT_STEPS_PLAN.md](DISEASE_PIPELINE_NEXT_STEPS_PLAN.md)*

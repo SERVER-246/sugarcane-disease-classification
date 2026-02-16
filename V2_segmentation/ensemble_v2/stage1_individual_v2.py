@@ -128,7 +128,7 @@ class Stage1IndividualV2:
         with torch.no_grad():
             for images, labels in loader:
                 images = images.to(DEVICE)
-                with torch.cuda.amp.autocast():  # type: ignore[attr-defined]
+                with torch.cuda.amp.autocast(dtype=torch.bfloat16):  # type: ignore[attr-defined]
                     outputs = model(images)
 
                 # Classification probabilities

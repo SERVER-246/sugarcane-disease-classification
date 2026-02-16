@@ -37,6 +37,7 @@ import torch.nn as nn
 from torch import amp  # type: ignore[attr-defined]
 
 from V2_segmentation.config import (
+    AMP_DTYPE,
     AMP_ENABLED,
     BACKBONE_PROFILES,
     BACKBONES,
@@ -200,7 +201,7 @@ def test_backbone_pipeline(
         masks = train_batch["mask"].to(DEVICE)
         confidence = train_batch["confidence"].to(DEVICE)
         model.train()
-        with amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+        with amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             out = model(images)
             loss_dict = criterion(
                 cls_logits=out["cls_logits"],
@@ -238,7 +239,8 @@ def test_backbone_pipeline(
             backbone_lr=0.0, seg_head_lr=1e-3, cls_head_lr=0.0,
         )
         optimizer = torch.optim.AdamW(param_groups, lr=1e-3)
-        scaler = amp.GradScaler("cuda", enabled=AMP_ENABLED)  # type: ignore[attr-defined]
+        _scaler_enabled = AMP_DTYPE == torch.float16
+        scaler = amp.GradScaler("cuda", enabled=_scaler_enabled)  # type: ignore[attr-defined]
         grad_accum = profile["grad_accum"]
 
         images = train_batch["image"].to(DEVICE)
@@ -247,7 +249,7 @@ def test_backbone_pipeline(
         confidence = train_batch["confidence"].to(DEVICE)
 
         optimizer.zero_grad(set_to_none=True)
-        with amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+        with amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             out = model(images)
             ld = criterion(
                 cls_logits=out["cls_logits"],
@@ -291,7 +293,7 @@ def test_backbone_pipeline(
         labels = val_batch["label"].to(DEVICE)
         masks = val_batch["mask"].to(DEVICE)
 
-        with torch.no_grad(), amp.autocast("cuda", enabled=AMP_ENABLED):  # type: ignore[attr-defined]
+        with torch.no_grad(), amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             out = model(images)
 
         tracker.update(

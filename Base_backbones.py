@@ -3660,8 +3660,17 @@ class MultiHeadSelfAttention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale
-        # CRITICAL FIX: Clip attention scores to prevent softmax overflow (NaN gradients)
+        # FP16 FIX: PRE-multiply scale on q before matmul to prevent FP16
+        # overflow.  Post-multiply (q @ k.T) * scale computes the full-magnitude
+        # dot product first, which can exceed FP16 max (~65504) with head_dim>=32.
+        # Pre-multiplying q keeps intermediate values in safe FP16 range.
+        q = q * self.scale
+
+        # FP32 attention: cast q,k to float32 for the matmul to guarantee
+        # no FP16 overflow, then cast back.  The VRAM overhead is minimal
+        # because N=196 (14x14), so the 196x196 attention matrix is tiny.
+        attn = (q.float() @ k.float().transpose(-2, -1)).to(q.dtype)
+        # Clip attention scores to prevent softmax overflow (NaN gradients)
         attn = torch.clamp(attn, min=-50, max=50)
         attn = attn.softmax(dim=-1)
 
@@ -4545,8 +4554,9 @@ class CustomCoAtNet(nn.Module):
         b, c, h, w = x.shape
         x_seq = x.flatten(2).transpose(1, 2)  # (B, 196, 512)
 
+        # Attention blocks (residual is INTERNAL to TransformerEncoderBlockWithLayerScale)
         for attn_block in self.stage2_attn_blocks:
-            x_seq = x_seq + attn_block(x_seq)  # Direct residual connection
+            x_seq = attn_block(x_seq)
 
         x = x_seq.transpose(1, 2).reshape(b, c, h, w)
 
@@ -4556,10 +4566,9 @@ class CustomCoAtNet(nn.Module):
         b, c, h, w = x.shape
         x = x.flatten(2).transpose(1, 2)  # (B, 196, 768)
 
-        # Apply transformer blocks with direct residuals
-        # Direct residuals throughout for best gradient flow
+        # Transformer blocks (residual is INTERNAL to TransformerEncoderBlockWithLayerScale)
         for transformer_block in self.stage3_transformer:
-            x = x + transformer_block(x)
+            x = transformer_block(x)
 
         x = self.norm(x)
 
@@ -4865,9 +4874,9 @@ class CustomMaxViT(nn.Module):
         b, c, h, w = x.shape
         x_seq = x.flatten(2).transpose(1, 2)  # (B, 196, 512)
 
-        # Enhanced attention with strong residuals
+        # Attention blocks (residual is INTERNAL to TransformerEncoderBlockWithLayerScale)
         for attn_block in self.stage2_attn:
-            x_seq = x_seq + attn_block(x_seq)  # Direct residual connection
+            x_seq = attn_block(x_seq)
 
         x = x_seq.transpose(1, 2).reshape(b, c, h, w)
 
@@ -4877,9 +4886,9 @@ class CustomMaxViT(nn.Module):
         b, c, h, w = x.shape
         x = x.flatten(2).transpose(1, 2)  # (B, 196, 768)
 
-        # Apply transformer blocks with direct residuals for optimal gradient flow
+        # Transformer blocks (residual is INTERNAL to TransformerEncoderBlockWithLayerScale)
         for transformer_block in self.stage3_transformer:
-            x = x + transformer_block(x)  # Direct residual throughout
+            x = transformer_block(x)
 
         x = self.norm(x)
 

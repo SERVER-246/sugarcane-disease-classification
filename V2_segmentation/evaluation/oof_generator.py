@@ -224,7 +224,7 @@ class OOFGenerator:
         """Quick training loop for OOF fold models."""
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
         criterion = torch.nn.CrossEntropyLoss()
-        scaler = torch.cuda.amp.GradScaler()  # type: ignore[attr-defined]
+        scaler = torch.cuda.amp.GradScaler(enabled=False)  # type: ignore[attr-defined]
 
         model.train()
         for _epoch in range(epochs):
@@ -233,7 +233,7 @@ class OOFGenerator:
                 targets = targets.to(DEVICE)
 
                 optimizer.zero_grad()
-                with torch.cuda.amp.autocast():  # type: ignore[attr-defined]
+                with torch.cuda.amp.autocast(dtype=torch.bfloat16):  # type: ignore[attr-defined]
                     outputs = model(images)
                     if isinstance(outputs, dict):
                         outputs = outputs.get("cls_logits", outputs.get("logits"))
@@ -257,7 +257,7 @@ class OOFGenerator:
         with torch.no_grad():
             for images, _ in loader:
                 images = images.to(DEVICE)
-                with torch.cuda.amp.autocast():  # type: ignore[attr-defined]
+                with torch.cuda.amp.autocast(dtype=torch.bfloat16):  # type: ignore[attr-defined]
                     outputs = model(images)
                     if isinstance(outputs, dict):
                         outputs = outputs.get("cls_logits", outputs.get("logits"))
