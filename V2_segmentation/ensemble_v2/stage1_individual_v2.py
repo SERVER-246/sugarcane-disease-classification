@@ -135,7 +135,7 @@ class Stage1IndividualV2:
                 cls_logits = outputs.get("cls_logits")
                 if cls_logits is not None:
                     cls_probs = F.softmax(cls_logits, dim=1)
-                    all_cls_probs.append(cls_probs.cpu().numpy())
+                    all_cls_probs.append(cls_probs.float().cpu().numpy())
 
                 # Segmentation masks
                 seg_logits = outputs.get("seg_logits")
@@ -146,7 +146,7 @@ class Stage1IndividualV2:
                         seg_probs, size=(56, 56),
                         mode="bilinear", align_corners=False,
                     )
-                    all_seg_masks.append(seg_probs.cpu().numpy())
+                    all_seg_masks.append(seg_probs.float().cpu().numpy())
 
                 all_labels.append(labels.numpy())
 

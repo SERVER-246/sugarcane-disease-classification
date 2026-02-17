@@ -678,7 +678,7 @@ def _collect_val_predictions(
         with amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
             outputs = model(images)
 
-        probs = F.softmax(outputs["cls_logits"], dim=1).cpu().numpy()
+        probs = F.softmax(outputs["cls_logits"], dim=1).float().cpu().numpy()
         all_probs_list.append(probs)
         all_labels_list.append(labels.cpu().numpy())
 

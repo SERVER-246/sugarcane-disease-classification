@@ -263,7 +263,7 @@ class OOFGenerator:
                         outputs = outputs.get("cls_logits", outputs.get("logits"))
                     assert outputs is not None
                     probs = F.softmax(outputs, dim=1)
-                all_probs.append(probs.cpu().numpy())
+                all_probs.append(probs.float().cpu().numpy())
 
         return np.concatenate(all_probs, axis=0)
 
