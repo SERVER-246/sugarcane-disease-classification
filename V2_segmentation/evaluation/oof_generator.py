@@ -318,8 +318,19 @@ class OOFGenerator:
             model.load_state_dict(backbone_state, strict=False)
 
             # Freeze backbone, only train classifier head
+            # Known classifier attribute names across all 15 backbones:
+            #   classifier.* (ConvNeXt, EfficientNetV4, GhostNetV2)
+            #   fc.*         (ResNetMish, CSPDarkNet, InceptionV4, MobileOne,
+            #                 RegNet, DenseNetHybrid, DynamicConvNet)
+            #   head.*       (CoAtNet, Swin, ViTHybrid, MaxViT, ConvNeXt)
+            #   head_dist.*  (DeiTStyle distillation head)
+            # NOTE: "head_conv" in EfficientNetV4 is a feature projection layer,
+            #       NOT a classifier — must NOT be unfrozen.
+            _HEAD_PREFIXES = ("classifier.", "fc.", "head.", "head_dist.")
             for name, param in model.named_parameters():
-                if "classifier" not in name and "fc" not in name and "head" not in name:
+                if any(name.startswith(p) for p in _HEAD_PREFIXES):
+                    param.requires_grad = True
+                else:
                     param.requires_grad = False
 
             model.to(DEVICE)
