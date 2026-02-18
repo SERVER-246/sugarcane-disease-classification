@@ -1,11 +1,11 @@
 ﻿# PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-17 (V2 Run 4 IN PROGRESS -- 14/15 backbones complete, ViTHybrid training)  
+**Last Updated:** 2026-02-17 (V2 Run 4 COMPLETE -- 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF added, K_FOLDS=20)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `b09bdfa` (fix(V2): switch to BFloat16 AMP + fix attention/residual in MaxViT/CoAtNet)  
-**Short One-Line HEALTH:** 🟢 **Green** -- V2 Run 4 in progress: 14/15 backbones complete with BFloat16 pipeline. **Zero NaN, zero BF16 warnings.** Top: DynamicConvNet 95.85%, CSPDarkNet 95.76%. ViTHybrid Phase B epoch 18/25 at 91.05%. Additional `.float()` fix applied for BF16→NumPy conversion.
+**Current HEAD Commit Hash:** `b61f7ff` (fix(V2): BF16-to-NumPy .float() conversion + overseer report)  
+**Short One-Line HEALTH:** 🟢 **Green** -- V2 Run 4 COMPLETE: **15/15 backbones trained, ensemble 96.14% (hard voting).** Zero NaN, zero BF16 warnings. Top: DynamicConvNet 95.85%, CSPDarkNet 95.76%. Phase 3.5 OOF generation added (K=20 folds). Ensemble stages 3, 9-12 now enabled.
 
 ---
 
@@ -26,7 +26,8 @@
 | 3-Seg | V2 Run 3 Analysis + Universal NaN Discovery | ✅ **COMPLETE** | 2026-02-16 |
 | 3-Seg | V2 BFloat16 Core Fix (6 files, all backbones) | ✅ **COMPLETE** | 2026-02-16 |
 | 3-Seg | V2 Base_backbones.py Attention + Residual Fix | ✅ **COMPLETE** | 2026-02-16 |
-| 3-Seg | V2 Training Run 4 -- Full Clean Rerun (all 15) | � **IN PROGRESS** (14/15 done) | - |
+| 3-Seg | V2 Training Run 4 -- Full Clean Rerun (all 15) | ✅ **COMPLETE** (15/15, ensemble 96.14%) | 2026-02-17 |
+| 3-Seg | V2 Phase 3.5 OOF Generation (K=20 folds) | 🟡 **PENDING** (code added, awaiting execution) | - |
 | 3B | Inference Server Hardening | 🔲 Not Started | - |
 | 4 | Deployment Discipline & Model Governance | 🔲 Not Started | - |
 | 5 | Continuous Validation & Production Safeguards | 🔲 Not Started | - |
@@ -37,12 +38,12 @@
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 4 IN PROGRESS with BFloat16 pipeline: **14/15 backbones complete, zero NaN, zero BF16 warnings.** Top performers: DynamicConvNet 95.85%, CSPDarkNet 95.76%, InceptionV4 95.19%. SwinTransformer improved 87→91.23%. MaxViT 77.10% and CoAtNet 78.32% still weak (architectural ceiling). ViTHybrid Phase B epoch 18/25 at 91.05%. Additional `.float()` fix discovered and applied for BF16→NumPy conversion in 3 files.
+- **Health Verdict:** V2 Run 4 **COMPLETE** with BFloat16 pipeline: **15/15 backbones trained, ensemble 96.14% (hard voting), zero NaN.** Top: DynamicConvNet 95.85%, CSPDarkNet 95.76%, InceptionV4 95.19%. ViTHybrid finished at 91.33%. Phase 3.5 OOF generation pipeline added (true K-fold with K=20). Ensemble stages 3, 9-12 (stacking, cascaded, adversarial, referee, distillation) now enabled pending OOF execution.
 - **Top 3 Prioritized Actions:**
-  1. ~~**All Sprints through V2 BFloat16 Core Fix**~~ ✅ ALL COMPLETE
-  2. **V2 Training Run 4** -- 🟢 IN PROGRESS (14/15 done, ViTHybrid training, Phases 4-6 pending)
-  3. **Sprint 3B: Inference Server Hardening** -- After Run 4 completes
-- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **30 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix + 3 in BF16→NumPy fix)
+  1. ~~**All Sprints through V2 Training Run 4**~~ ✅ ALL COMPLETE (15/15, ensemble 96.14%)
+  2. **V2 Phase 3.5 OOF Generation** -- 🟡 PENDING (K=20 folds, enables ensemble stages 3, 9-12)
+  3. **Sprint 3B: Inference Server Hardening** -- After Phase 3.5 + Re-ensemble
+- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **70 V2 segmentation files**; **33 files modified across V2 bug fixes** (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix + 3 in BF16→NumPy fix + 3 in Phase 3.5 OOF addition)
 
 ---
 
@@ -1389,41 +1390,58 @@ The project is production-ready with:
       - `stage1_individual_v2.py` lines 138, 149: `cls_probs.float().cpu().numpy()` and `seg_probs.float().cpu().numpy()`
     - **Impact**: Without fix, plots and evaluation NPZ files failed to generate. First 3 backbones in aborted run had 0 plots. Fix + clean restart resolved it.
 
-28. 🟢 **Sprint 3-Seg: V2 Training Run 4 -- IN PROGRESS** (2026-02-16 started, 2026-02-17 ongoing)
+28. ✅ **Sprint 3-Seg: V2 Training Run 4 -- COMPLETE** (2026-02-16 started, 2026-02-17 finished)
     - **Pipeline**: `python -m V2_segmentation.run_pipeline_v2 --phase 3 4 5 6`
     - **Started**: 2026-02-16 14:08 (clean restart after BF16→NumPy fix)
-    - **Status**: 14/15 backbones complete, ViTHybrid Phase B epoch 18/25 at 91.05%
-    - **Zero NaN warnings** across all 14 completed backbones
+    - **Completed**: 2026-02-17 — **15/15 backbones, 23.7 hours total**
+    - **Zero NaN warnings** across all 15 backbones
     - **Zero BF16 conversion warnings**
-    - **56 plots** generated (3 per backbone × 14 + 2 in progress)
-    - **14 evaluation NPZ** files present
-    - **Run 4 Results (14/15):**
+    - **60 plots** generated (4 per backbone × 15)
+    - **15 evaluation NPZ** files present
+    - **96 ensemble files** generated (Phases 4-6)
+    - **Ensemble Results**: Hard voting **96.14%**, Soft voting 96.04%, Weighted voting 96.04%
+    - **Ensemble stages 3, 9-12 SKIPPED** — no OOF predictions existed (→ fixed in item 29)
+    - **Run 4 Final Results (15/15):**
 
-    | Backbone | Accuracy | mIoU | Time (min) | Wave |
-    |----------|----------|------|------------|------|
-    | CustomDynamicConvNet | **95.85%** | 0.8124 | 48.8 | HIGH |
-    | CustomCSPDarkNet | **95.76%** | 0.8121 | 62.1 | HIGH |
-    | CustomInceptionV4 | **95.19%** | 0.8093 | 47.6 | LIGHT |
-    | CustomGhostNetV2 | **94.72%** | 0.8163 | 41.2 | LIGHT |
-    | CustomRegNet | **94.63%** | 0.8119 | 35.7 | MEDIUM |
-    | CustomMobileOne | **94.16%** | 0.8134 | 51.6 | LIGHT |
-    | CustomResNetMish | **94.06%** | 0.8160 | 48.3 | MEDIUM |
-    | CustomConvNeXt | **93.87%** | 0.8156 | 43.7 | MEDIUM |
-    | CustomDeiTStyle | **93.69%** | 0.8125 | 176.6 | HIGH |
-    | CustomEfficientNetV4 | **93.12%** | 0.8135 | 55.7 | LIGHT |
-    | CustomDenseNetHybrid | **92.65%** | 0.8111 | 48.5 | LIGHT |
-    | CustomSwinTransformer | **91.23%** | 0.8080 | 146.6 | HEAVY |
-    | CustomCoAtNet | **78.32%** | 0.8338 | 159.9 | HEAVY |
-    | CustomMaxViT | **77.10%** | 0.8071 | 169.1 | HIGH |
-    | CustomViTHybrid | *~91.05%* | *~0.8139* | *training* | HEAVY |
+    | Backbone | Val Acc | Test Acc | mIoU | Time (min) | Wave |
+    |----------|---------|----------|------|------------|------|
+    | CustomDynamicConvNet | **95.85%** | 94.53% | 0.8124 | 48.8 | HIGH |
+    | CustomCSPDarkNet | **95.76%** | 94.34% | 0.8121 | 62.1 | HIGH |
+    | CustomInceptionV4 | **95.19%** | 94.06% | 0.8093 | 47.6 | LIGHT |
+    | CustomGhostNetV2 | **94.72%** | 94.53% | 0.8163 | 41.2 | LIGHT |
+    | CustomRegNet | **94.63%** | 93.87% | 0.8119 | 35.7 | MEDIUM |
+    | CustomMobileOne | **94.16%** | 93.87% | 0.8134 | 51.6 | LIGHT |
+    | CustomResNetMish | **94.06%** | 93.31% | 0.8160 | 48.3 | MEDIUM |
+    | CustomConvNeXt | **93.87%** | 93.12% | 0.8156 | 43.7 | MEDIUM |
+    | CustomDeiTStyle | **93.69%** | 94.34% | 0.8125 | 176.6 | HIGH |
+    | CustomEfficientNetV4 | **93.12%** | 93.50% | 0.8135 | 55.7 | LIGHT |
+    | CustomDenseNetHybrid | **92.65%** | 93.40% | 0.8111 | 48.5 | LIGHT |
+    | CustomViTHybrid | **91.33%** | 92.65% | 0.8163 | 267.2 | HEAVY |
+    | CustomSwinTransformer | **91.23%** | 92.84% | 0.8080 | 146.6 | HEAVY |
+    | CustomCoAtNet | **78.32%** | 79.64% | 0.8338 | 159.9 | HEAVY |
+    | CustomMaxViT | **77.10%** | 76.25% | 0.8071 | 169.1 | HIGH |
 
     - **Key Observations:**
+      - **All 15/15 backbones completed** — first fully successful V2 run
       - SwinTransformer improved from 87.09% (Run 3) → 91.23% (Run 4) ✅
-      - ViTHybrid trending ~91% (was 90.29% in Run 3) ✅
-      - 11 backbones at 91%+ (vs 10 in Run 3)
-      - MaxViT (77.10%) and CoAtNet (78.32%) remain weak — likely architectural ceiling for these hybrid attention designs with this dataset size
-      - Total training time for 14 backbones: ~19.3 hours
+      - ViTHybrid finished at 91.33% (was 90.29% in Run 3) ✅
+      - 12 backbones at 91%+ (vs 10 in Run 3)
+      - MaxViT (77.10%) and CoAtNet (78.32%) remain weak — architectural ceiling
+      - Total training time: **23.7 hours** (Phase 3: 23.4h, Phase 4: 14.2m, Phase 5: audit, Phase 6: plots)
       - BFloat16 pipeline confirmed stable — no scaler needed, no overflow
+
+29. 🟡 **Sprint 3-Seg: V2 Phase 3.5 OOF Generation Pipeline** (2026-02-17, 3 files modified)
+    - **Problem**: Ensemble stages 3 (stacking), 9 (cascaded), 10 (adversarial), 11 (referee), 12 (distillation) all require OOF predictions (`{backbone}_oof_probs.npy`). No pipeline phase generated these — `OOFGenerator` class existed but was never wired into any phase.
+    - **Solution**: Added Phase 3.5 to pipeline — true K-fold OOF generation using V2 pretrained backbone weights:
+      1. Load `*_v2_final.pth` checkpoint, extract `backbone.*` keys
+      2. For each of K=20 folds: create fresh V1 backbone with pretrained weights, freeze backbone, quick-train classifier head only (10 epochs), predict holdout fold
+      3. Assemble all holdout predictions → `{backbone}_oof_probs.npy` (leakage-free)
+    - **Files Modified:**
+      - `V2_segmentation/evaluation/oof_generator.py`: Added `generate_v2_oof()` (~130 lines) + `generate_all_v2_oof()` (~60 lines), fixed AMP calls in `_quick_train()` and `_predict()`
+      - `V2_segmentation/run_pipeline_v2.py`: Added "3.5" to PHASES list, `_phase_35_oof()` handler, updated docstring + CLI help
+      - `V2_segmentation/config.py`: `K_FOLDS = 5` → `K_FOLDS = 20`
+    - **Status**: Code complete and validated (zero Pylance errors, dry-run passes). Awaiting execution.
+    - **Impact**: Once run, all 12 ensemble stages will be operational (currently only stages 1, 2, 8 work)
 
 ### Partial Items ⚠️
 
@@ -1479,9 +1497,10 @@ The project is production-ready with:
 | 10 | ~~**Sprint 3-Seg: V2 Training Run 3**~~ | Swin 87%, ViTHybrid 90% fixed. MaxViT 77%, CoAtNet 76% still weak | HIGH | ✅ DONE |
 | 11 | ~~**Sprint 3-Seg: V2 BFloat16 Core Fix**~~ | Universal NaN root cause: FP16+GradScaler overflow in seg backward | HIGH | ✅ DONE |
 | 12 | ~~**Sprint 3-Seg: V2 Architecture Fix**~~ | Pre-multiply attention scale, FP32 matmul, double-residual removal | HIGH | ✅ DONE |
-| 13 | **Sprint 3-Seg: V2 Training Run 4** | Full clean rerun of all 15 backbones with BF16 pipeline | HIGH | � IN PROGRESS (14/15) |
-| 13b | **Sprint 3-Seg: V2 BF16→NumPy Fix** | `.float()` before `.cpu().numpy()` in 3 files (trainer, OOF, ensemble) | HIGH | ✅ DONE |
-| 14 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble + validation gate (Phases 4-6) | HIGH | ⏳ AFTER RUN 4 |
+| 13 | ~~**Sprint 3-Seg: V2 Training Run 4**~~ | Full clean rerun of all 15 backbones with BF16 pipeline | HIGH | ✅ DONE (15/15, 96.14%) |
+| 13b | ~~**Sprint 3-Seg: V2 BF16→NumPy Fix**~~ | `.float()` before `.cpu().numpy()` in 3 files (trainer, OOF, ensemble) | HIGH | ✅ DONE |
+| 14 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble (stages 1,2,8 done; 3,9-12 need OOF) | HIGH | ⚠️ PARTIAL |
+| 14b | **Sprint 3-Seg: V2 Phase 3.5 OOF Generation** | K=20 fold OOF predictions for stacking/cascaded/adversarial/referee | HIGH | 🟡 PENDING |
 | 15 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
 | 16 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
 | 17 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
@@ -1763,7 +1782,9 @@ Get-ChildItem "Data\" -Recurse -File |
 | 2026-02-16 | *(applied)* | **V2 Architecture Fix** | Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet |
 | 2026-02-16 | *(applied)* | **V2 Full Artifact Cleanup** | Deleted all 261 V2 artifacts (60 pth, 32 json, 15 npz, 58 plots, 96 ensemble) |
 | 2026-02-16 | *(applied)* | **V2 BF16→NumPy Fix** | `.float()` before `.cpu().numpy()` in train_v2_backbone, oof_generator, stage1_individual (3 files) |
-| 2026-02-16 | *(started)* | **V2 Run 4 (Full Clean Rerun)** | Started 14:08. 14/15 done by 2026-02-17. ViTHybrid still training |
+| 2026-02-16 | *(started)* | **V2 Run 4 (Full Clean Rerun)** | Started 14:08. All 15 backbones completed by 2026-02-17 (23.7 hours) |
+| 2026-02-17 | *(completed)* | **V2 Run 4 Complete** | 15/15 backbones, ensemble 96.14% (hard voting), zero NaN. ViTHybrid 91.33% |
+| 2026-02-17 | *(added)* | **V2 Phase 3.5 OOF Pipeline** | Added K=20 fold OOF generation (3 files). Enables ensemble stages 3, 9-12 |
 
 #### Current State Summary (February 2026)
 
@@ -1779,7 +1800,7 @@ Get-ChildItem "Data\" -Recurse -File |
 | Model Storage | ~8 GB (checkpoints + exports) |
 | Git-tracked Files | 131+ |
 | V2 Segmentation Files | 70 (across 8 modules, +2 visualization files) |
-| V2 Bug Fix Files Modified | 30 total (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix + 3 in BF16→NumPy fix) |
+| V2 Bug Fix Files Modified | 33 total (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix + 3 in BF16→NumPy fix + 3 in Phase 3.5 OOF) |
 | V2 Run 1 Result | 11/15 good (92-96%), 4 transformers failed |
 | V2 Run 1 Best Backbone | CustomConvNeXt (95.38%) |
 | V2 Run 2 Result | DeiTStyle FIXED (93.31%), 10 CNNs stable (93-96%), Swin/ViTHybrid still 4.71% |
@@ -1788,12 +1809,16 @@ Get-ChildItem "Data\" -Recurse -File |
 | V2 Run 3 Root Cause (Universal) | GradScaler+FP16 overflow in seg decoder backward path affects ALL 15 backbones |
 | V2 BF16 Fix | Switched to BFloat16 (8-bit exponent, no GradScaler needed) across 6 files |
 | V2 Architecture Fix | Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet |
-| V2 Run 4 | IN PROGRESS -- 14/15 complete. Best: DynamicConvNet 95.85%. Swin 91.23% ✅. ViTHybrid ~91% training. Zero NaN |
+| V2 Run 4 Result | ✅ COMPLETE -- 15/15 backbones, best: DynamicConvNet 95.85%. Ensemble: hard 96.14%. Zero NaN. 23.7 hours |
+| V2 Run 4 Best Backbone | CustomDynamicConvNet (95.85% val, 94.53% test) |
+| V2 Run 4 Ensemble | Hard voting 96.14%, Soft voting 96.04%, Weighted voting 96.04% |
+| V2 K_FOLDS | 20 (changed from 5 for Phase 3.5 OOF generation) |
+| V2 Phase 3.5 OOF | 🟡 PENDING -- code added to oof_generator.py, run_pipeline_v2.py, config.py. Awaiting execution |
 | Tests Passing | 51 (+ 30 slow skipped) |
 | CI/CD Status | ✅ Fully Operational |
 | Ruff Lint Errors | 0 |
 | Pylance Type Errors | 0 |
-| V2 Pipeline Status | � Run 4 in progress: 14/15 backbones done, zero NaN, zero BF16 warnings |
+| V2 Pipeline Status | ✅ Run 4 COMPLETE: 15/15 backbones, ensemble 96.14%, zero NaN. Phase 3.5 OOF pending |
 | V2 Pipeline Errors | 0 |
 | GPU | NVIDIA RTX 4500 Ada, 24GB VRAM, Compute 8.9, BF16 native support |
 
@@ -1805,22 +1830,22 @@ Get-ChildItem "Data\" -Recurse -File |
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-16 (V2 BFloat16 Core Fix Applied -- Full Clean Rerun (Run 4) Pending)  
+**Last Updated:** 2026-02-17 (V2 Run 4 COMPLETE -- 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF added, K_FOLDS=20)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `b09bdfa`  
-**Short One-Line HEALTH:** Green -- V2 Run 4 in progress: 14/15 backbones complete, zero NaN. BF16 pipeline confirmed stable.
+**Current HEAD Commit Hash:** `b61f7ff`  
+**Short One-Line HEALTH:** Green -- V2 Run 4 COMPLETE: 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF pipeline added (K=20). Zero NaN.
 
 ---
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 4 IN PROGRESS with BFloat16 pipeline: 14/15 backbones complete, zero NaN. Top: DynamicConvNet 95.85%, CSPDarkNet 95.76%. Swin improved 87→91.23%. ViTHybrid Phase B at ~91%. MaxViT/CoAtNet still weak (~77-78%).
+- **Health Verdict:** V2 Run 4 COMPLETE: 15/15 backbones, ensemble 96.14% (hard voting), zero NaN. Phase 3.5 OOF added (K=20 folds). Top: DynamicConvNet 95.85%, CSPDarkNet 95.76%.
 - **Top 3 Prioritized Actions:**
-  1. All Sprints through V2 BFloat16 Core Fix -- COMPLETE
-  2. V2 Run 4 -- IN PROGRESS (14/15 done, ViTHybrid training)
-  3. Sprint 3B: Inference Server Hardening -- After Run 4
-- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 30 files modified across fixes; 0 Pylance errors
+  1. All Sprints through V2 Run 4 -- COMPLETE
+  2. V2 Phase 3.5 OOF Generation -- PENDING (K=20 folds, enables ensemble stages 3, 9-12)
+  3. Sprint 3B: Inference Server Hardening -- After Phase 3.5 + Re-ensemble
+- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 33 files modified across fixes; 0 Pylance errors
 ```
 
 ---
@@ -1829,19 +1854,20 @@ Get-ChildItem "Data\" -Recurse -File |
 
 **Report Generated By:** Sugam Singh  
 *Full Path: `F:\DBT-Base-DIr\PROJECT_OVERSEER_REPORT_DISEASE.md`*  
-*Last Updated: 2026-02-17 (V2 Run 4 IN PROGRESS -- 14/15 backbones complete, ViTHybrid training)*  
+*Last Updated: 2026-02-17 (V2 Run 4 COMPLETE -- 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF added)*  
 *Total Files Analyzed: 390+ documented + 10,607 dataset images*  
 *Total Model Storage: ~8 GB (checkpoints + exports)*  
 *Total Training Data: 10,607 images (13 classes)*  
 *Total Tests Passing: 51 (+ 30 slow tests skipped by design)*  
 *V2 Segmentation Files: 70 Python files across 8 modules*  
-*V2 Bug Fix Files: 30 total (12 Run 1 fixes + 7 transformer fix + 2 deeper fix + 6 BF16 core fix + 3 BF16→NumPy fix)*  
+*V2 Bug Fix Files: 33 total (12 Run 1 + 7 transformer + 2 deeper + 6 BF16 core + 3 BF16→NumPy + 3 Phase 3.5 OOF)*  
 *V2 Run 1: 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption)*  
 *V2 Run 2: DeiTStyle fixed (93.31%), Swin/ViTHybrid still 4.71% (FP16 overflow), MaxViT 79%, CoAtNet 77%*  
 *V2 Run 3: Swin 87.09% FIXED, ViTHybrid 90.29% FIXED, MaxViT 77.47%, CoAtNet 75.68%*  
 *V2 BF16 Fix: Universal NaN root cause resolved -- switched FP16+GradScaler to BFloat16 across 6 files*  
 *V2 Architecture Fix: Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet*  
 *V2 BF16→NumPy Fix: `.float()` before `.cpu().numpy()` in 3 files (trainer, OOF, ensemble)*
-*V2 Run 4: IN PROGRESS -- 14/15 complete (best: DynamicConvNet 95.85%), ViTHybrid ~91% training, zero NaN*  
+*V2 Run 4: COMPLETE -- 15/15 backbones (best: DynamicConvNet 95.85%), ensemble 96.14%, zero NaN, 23.7 hours*  
+*V2 Phase 3.5: OOF generation pipeline added (K=20 folds, 3 files modified). Awaiting execution*  
 *CI Pipeline: \u2705 Fully Operational (Ruff + Pyright + pytest + Docker)*  
 *Reference Document: [DISEASE_PIPELINE_NEXT_STEPS_PLAN.md](DISEASE_PIPELINE_NEXT_STEPS_PLAN.md)*

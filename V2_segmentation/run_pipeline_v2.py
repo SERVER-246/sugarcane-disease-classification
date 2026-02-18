@@ -9,6 +9,7 @@ Orchestrates all phases end-to-end:
   Phase 1   : Pseudo-labels (GrabCut + GradCAM + SAM → fusion → quality → tiers)
   Phase 2   : Model setup (already done — backbone adapter, decoder, dual head)
   Phase 3   : Training (3-phase A/B/C per backbone, 15 backbones in waves)
+  Phase 3.5 : OOF predictions (K-fold, leakage-free, for ensemble stacking)
   Phase 4   : Ensemble V2 (12-stage pipeline)
   Phase 5   : Evaluation & validation (leakage, overfit, audit)
   Phase 6   : Visualization (overlays, curves, comparisons)
@@ -86,7 +87,7 @@ def setup_logging(verbose: bool = False) -> None:
 class PipelineV2:
     """End-to-end V2 segmentation pipeline orchestrator."""
 
-    PHASES = ["0", "0.5", "1", "2", "3", "4", "5", "6"]
+    PHASES = ["0", "0.5", "1", "2", "3", "3.5", "4", "5", "6"]
 
     def __init__(self, dry_run: bool = False) -> None:
         self.dry_run = dry_run
@@ -143,6 +144,7 @@ class PipelineV2:
             "1": self._phase_1_pseudo_labels,
             "2": self._phase_2_models,
             "3": self._phase_3_training,
+            "3.5": self._phase_35_oof,
             "4": self._phase_4_ensemble,
             "5": self._phase_5_evaluation,
             "6": self._phase_6_visualization,
@@ -310,6 +312,26 @@ class PipelineV2:
         report = train_all_backbones()
         return {"summary": report.summary()}
 
+    def _phase_35_oof(self) -> dict:
+        """Phase 3.5: Generate true K-fold OOF predictions for all backbones.
+
+        Uses pre-trained V2 backbone weights with per-fold classifier head
+        retraining for leakage-free OOF predictions.  These are required by
+        ensemble stages 3, 9, 10, 11, and 12.
+        """
+        if self.dry_run:
+            return {"dry_run": True, "would_run": "K-fold OOF generation for 15 backbones"}
+
+        from V2_segmentation.evaluation import OOFGenerator
+
+        gen = OOFGenerator()
+        logger.info(
+            f"Phase 3.5: Generating OOF predictions "
+            f"({gen.n_folds} folds, 10 epochs/fold, 15 backbones)"
+        )
+        results = gen.generate_all_v2_oof(quick_epochs=10)
+        return results
+
     def _phase_4_ensemble(self) -> dict:
         """Phase 4: 12-stage ensemble pipeline."""
         if self.dry_run:
@@ -442,7 +464,7 @@ Examples:
     )
     parser.add_argument(
         "--phase", nargs="+", default=None,
-        help="Phase(s) to run. Options: 0, 0.5, 1, 2, 3, 4, 5, 6",
+        help="Phase(s) to run. Options: 0, 0.5, 1, 2, 3, 3.5, 4, 5, 6",
     )
     parser.add_argument(
         "--dry-run", action="store_true",

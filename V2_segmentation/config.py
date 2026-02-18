@@ -268,7 +268,7 @@ EFFECTIVE_BATCH_SIZE = 32  # All tiers achieve this via gradient accumulation
 OPTIMIZER = "AdamW"
 SCHEDULER = "CosineAnnealingWarmRestarts"
 WARMUP_EPOCHS = 3
-K_FOLDS = 5
+K_FOLDS = 20
 
 # ============================================================================
 #  SEGMENTATION DECODER
