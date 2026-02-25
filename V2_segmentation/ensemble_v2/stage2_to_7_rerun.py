@@ -1,61 +1,30 @@
 """
 V2_segmentation/ensemble_v2/stage2_to_7_rerun.py
 ==================================================
-Re-run V1 ensemble stages 2–7 on V2 dual-head predictions.
+Re-run V1 ensemble stages 2–3 on V2 dual-head predictions.
+Stages 4–7 are handled by dedicated V2 modules.
 
 Stages:
   2: Score ensembles (hard/soft/weighted/logit voting)
   3: Stacking (LR/MLP/XGBoost)
-  4: Feature fusion (attention/bilinear/concat)
-  5: Mixture of Experts (gating network)
-  6: Meta-learner (combines stages 1–5)
-  7: Knowledge distillation (student model)
-
-These stages re-use the EXISTING V1 ensemble_system/ code but feed it
-V2 predictions from Stage 1. All stacking/training uses OOF predictions.
+  4–6: Delegated to stage4_feature_fusion_v2, stage5_mixture_experts_v2,
+       stage6_meta_learner_v2
+  7: Superseded by Stage 12 distillation
 """
 
 from __future__ import annotations
 
-import importlib
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from V2_segmentation.config import (
-    BACKBONES, BASE_DIR, ENSEMBLE_V2_DIR, OOF_DIR, SPLIT_DIR,
+    BACKBONES, ENSEMBLE_V2_DIR, OOF_DIR, SPLIT_DIR,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _import_v1_stage(stage_num: int) -> Any:
-    """Import a V1 ensemble stage module if available."""
-    # V1 ensemble lives at BASE_DIR/ensemble_system/
-    ensemble_dir = BASE_DIR / "ensemble_system"
-    if str(ensemble_dir) not in sys.path:
-        sys.path.insert(0, str(ensemble_dir))
-
-    stage_map = {
-        2: "stage2_score_ensemble",
-        3: "stage3_stacking",
-        4: "stage4_feature_fusion",
-        5: "stage5_mixture_of_experts",
-        6: "stage6_meta_learner",
-        7: "stage7_distillation",
-    }
-    module_name = stage_map.get(stage_num)
-    if module_name is None:
-        return None
-
-    try:
-        return importlib.import_module(module_name)
-    except ImportError:
-        logger.warning(f"V1 stage {stage_num} module not found: {module_name}")
-        return None
 
 
 class Stage2To7Rerun:
@@ -209,8 +178,11 @@ class Stage2To7Rerun:
         logger.info(f"Stage 3 stacking: val_acc={val_acc:.4f}")
         return result
 
-    def run_all(self) -> dict[str, Any]:
-        """Run stages 2-7 sequentially."""
+    def run_stages2to3(self) -> dict[str, Any]:
+        """Run only stages 2 and 3 (voting + stacking).
+
+        Stages 4-7 are now handled by dedicated V2 modules.
+        """
         results: dict[str, Any] = {}
 
         # Stage 2: Voting
@@ -227,15 +199,35 @@ class Stage2To7Rerun:
             logger.error(f"Stage 3 failed: {e}")
             results["stage3"] = {"status": "FAIL", "error": str(e)}
 
-        # Stages 4-7: Try to import from V1 ensemble_system
+        return results
+
+    def run_all(self) -> dict[str, Any]:
+        """Run stages 2-7 sequentially.
+
+        Stages 2-3 run natively. Stages 4-7 are delegated to their
+        dedicated V2 modules (called from the orchestrator).
+        """
+        results: dict[str, Any] = {}
+
+        # Stage 2: Voting
+        try:
+            results["stage2"] = self.run_stage2_voting("val")
+        except Exception as e:
+            logger.error(f"Stage 2 failed: {e}")
+            results["stage2"] = {"status": "FAIL", "error": str(e)}
+
+        # Stage 3: Stacking
+        try:
+            results["stage3"] = self.run_stage3_stacking()
+        except Exception as e:
+            logger.error(f"Stage 3 failed: {e}")
+            results["stage3"] = {"status": "FAIL", "error": str(e)}
+
+        # Stages 4-7: Now handled by dedicated V2 modules
         for stage_num in [4, 5, 6, 7]:
-            try:
-                module = _import_v1_stage(stage_num)
-                if module is not None and hasattr(module, "run"):
-                    results[f"stage{stage_num}"] = {"status": "DELEGATED_TO_V1"}
-                else:
-                    results[f"stage{stage_num}"] = {"status": "PENDING"}
-            except Exception as e:
-                results[f"stage{stage_num}"] = {"status": "FAIL", "error": str(e)}
+            results[f"stage{stage_num}"] = {
+                "status": "DELEGATED_TO_V2",
+                "note": f"Stage {stage_num} handled by dedicated V2 module",
+            }
 
         return results

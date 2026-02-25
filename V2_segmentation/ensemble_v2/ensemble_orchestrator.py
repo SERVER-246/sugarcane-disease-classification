@@ -67,9 +67,26 @@ class EnsembleOrchestratorV2:
         if 1 not in self.skip_stages:
             self._run_stage(1, self._stage1)
 
-        # ── Stage 2-7: V1 Stages Re-run ──────────────────────────────
-        if not self.skip_stages.intersection({2, 3, 4, 5, 6, 7}):
-            self._run_stage("2-7", self._stages2to7)
+        # ── Stage 2-3: Voting + Stacking ─────────────────────────────
+        if not self.skip_stages.intersection({2, 3}):
+            self._run_stage("2-3", self._stages2to3)
+
+        # ── Stage 4: Feature Fusion (V2) ─────────────────────────────
+        if 4 not in self.skip_stages:
+            self._run_stage(4, self._stage4)
+
+        # ── Stage 5: Mixture of Experts (V2) ─────────────────────────
+        if 5 not in self.skip_stages:
+            self._run_stage(5, self._stage5)
+
+        # ── Stage 6: Meta-Ensemble Controller (V2) ───────────────────
+        if 6 not in self.skip_stages:
+            self._run_stage(6, self._stage6)
+
+        # ── Stage 7: Knowledge Distillation (legacy — via stage 12) ──
+        # Stage 7 is superseded by Stage 12; kept as no-op for numbering.
+        if 7 not in self.skip_stages:
+            self._run_stage(7, self._stage7)
 
         # ── Stage 8: Segmentation-Informed ────────────────────────────
         if 8 not in self.skip_stages:
@@ -169,9 +186,25 @@ class EnsembleOrchestratorV2:
         from .stage1_individual_v2 import Stage1IndividualV2
         return Stage1IndividualV2().run()
 
-    def _stages2to7(self) -> dict[str, Any]:
+    def _stages2to3(self) -> dict[str, Any]:
         from .stage2_to_7_rerun import Stage2To7Rerun
-        return Stage2To7Rerun().run_all()
+        return Stage2To7Rerun().run_stages2to3()
+
+    def _stage4(self) -> dict[str, Any]:
+        from .stage4_feature_fusion_v2 import Stage4FeatureFusionV2
+        return Stage4FeatureFusionV2().run()
+
+    def _stage5(self) -> dict[str, Any]:
+        from .stage5_mixture_experts_v2 import Stage5MixtureExpertsV2
+        return Stage5MixtureExpertsV2().run()
+
+    def _stage6(self) -> dict[str, Any]:
+        from .stage6_meta_learner_v2 import Stage6MetaLearnerV2
+        return Stage6MetaLearnerV2().run()
+
+    def _stage7(self) -> dict[str, Any]:
+        """Stage 7 (knowledge distillation) is superseded by Stage 12."""
+        return {"status": "PASS", "note": "Superseded by Stage 12 distillation"}
 
     def _stage8(self) -> dict[str, Any]:
         from .stage8_seg_informed import Stage8SegInformed
