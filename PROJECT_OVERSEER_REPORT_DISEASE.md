@@ -1,11 +1,11 @@
 ﻿# PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-25 (Phase 3.5 OOF COMPLETE 15/15×20 folds, 156.6 hrs. V2 Stages 4/5/6 BUILT. Ensemble re-run PENDING.)  
+**Last Updated:** 2026-04-01 (OOF generator bug fixes, .gitignore updated for Paper_redrot/annotations/logs. V2 Stages 4/5/6 BUILT. Ensemble re-run PENDING.)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `b61f7ff` (fix(V2): BF16-to-NumPy .float() conversion + overseer report)  
-**Short One-Line HEALTH:** 🟢 **Green** -- Phase 3.5 OOF **COMPLETE** (15/15 backbones × 20 folds, 300 total, 156.6 hrs, 0 errors). V2 Stages 4 (Feature Fusion), 5 (MoE), 6 (Meta-Learner) **BUILT & WIRED**. Ensemble Phases 4-6 re-run **READY** — output dirs cleaned, awaiting execution.
+**Current HEAD Commit Hash:** `f47afc1` (fix: OOF generator bug fixes + gitignore Paper_redrot/annotations/logs)  
+**Short One-Line HEALTH:** 🟢 **Green** -- Phase 3.5 OOF **COMPLETE** (15/15 backbones × 20 folds, 300 total, 156.6 hrs, 0 errors). V2 Stages 4 (Feature Fusion), 5 (MoE), 6 (Meta-Learner) **BUILT & WIRED**. OOF generator bug fixes applied. .gitignore updated (Paper_redrot/, annotations/, *.log.*). Ensemble Phases 4-6 re-run **READY** — output dirs cleaned, awaiting execution.
 
 ---
 
@@ -29,6 +29,7 @@
 | 3-Seg | V2 Training Run 4 -- Full Clean Rerun (all 15) | ✅ **COMPLETE** (15/15, ensemble 96.14%) | 2026-02-17 |
 | 3-Seg | V2 Phase 3.5 OOF Generation (K=20 folds) | ✅ **COMPLETE** (15/15×20 folds, 156.6 hrs, 0 errors) | 2026-02-24 |
 | 3-Seg | V2 Stages 4/5/6 Implementation (Feature Fusion, MoE, Meta-Learner) | ✅ **COMPLETE** (3 new V2 modules + orchestrator wiring) | 2026-02-25 |
+| 3-Seg | OOF Generator Bug Fixes + .gitignore Cleanup | ✅ **COMPLETE** (total_mem typo, unused vars, assert, Paper_redrot/ ignored) | 2026-04-01 |
 | 3-Seg | V2 Ensemble Re-run (Phases 4-6 with new stages) | 🟡 **READY** (output dirs cleaned, awaiting execution) | - |
 | 3B | Inference Server Hardening | 🔲 Not Started | - |
 | 4 | Deployment Discipline & Model Governance | 🔲 Not Started | - |
@@ -45,7 +46,7 @@
   1. ~~**Phase 3.5 OOF Generation**~~ ✅ COMPLETE (15/15×20, 156.6 hrs)
   2. **V2 Ensemble Re-run (Phases 4-6)** -- 🟡 READY (output dirs cleaned, new stages 4/5/6 wired)
   3. **Sprint 3B: Inference Server Hardening** -- After ensemble re-run
-- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **73 V2 segmentation files** (3 new stage files); **36 files modified across V2 bug fixes** (+3 new V2 stage modules + 3 modified orchestrator/init files)
+- **Completeness Summary:** 390+ files documented; 51 pytest tests passing; **3 GitHub Actions workflows configured**; 0 Pylance errors; 0 Ruff lint errors; **73 V2 segmentation files** (3 new stage files); **36 files modified across V2 bug fixes** (+3 new V2 stage modules + 3 modified orchestrator/init files). .gitignore updated to exclude `Paper_redrot/`, `annotations/`, `*.log.*`
 
 ---
 
@@ -119,9 +120,52 @@ Based on file modification timestamps (mtime), the dataset images were the earli
 
 ## PROJECT TIMELINE (Traceable)
 
-### Git Commit History (All 7 Commits)
+### Git Commit History (All 48 Commits)
 
 ```
+c7d062d | 2026-04-01 | SERVER-246 | docs: sync overseer report to HEAD f47afc1 -- fix Phase 3.5 status, add item #30, update metadata
+f47afc1 | 2026-04-01 | SERVER-246 | fix: OOF generator bug fixes + gitignore Paper_redrot/annotations/logs
+63c232b | 2026-02-25 | SERVER-246 | feat(V2): add dedicated V2 stages 4/5/6 + remove dead V1 delegation
+900ff1a | 2026-02-18 | SERVER-246 | feat: comprehensive logging for Phase 3.5 OOF generation
+2577bcd | 2026-02-18 | SERVER-246 | fix(V2): precise freeze filter in OOF generator -- exclude head_conv in EfficientNetV4
+135b35a | 2026-02-18 | SERVER-246 | feat(V2): add Phase 3.5 OOF generation pipeline (K=20 folds) + Run 4 complete
+b61f7ff | 2026-02-17 | SERVER-246 | fix(V2): BF16-to-NumPy .float() conversion + overseer report Run 4 progress
+b09bdfa | 2026-02-16 | SERVER-246 | fix(V2): switch to BFloat16 AMP + fix attention/residual in MaxViT/CoAtNet + update overseer report
+7b17617 | 2026-02-14 | SERVER-246 | fix(V2): deeper transformer fix -- GradScaler persistence + checkpoint class-name matching
+4ad63ee | 2026-02-13 | SERVER-246 | fix(V2): transformer grad-checkpoint hook corruption + plot spacing + overseer update
+d3e91a7 | 2026-02-12 | SERVER-246 | fix(V2): replace Unicode symbols with ASCII for Windows cp1252 logging
+7e4c3eb | 2026-02-11 | SERVER-246 | fix(V2): resolve CUDA OOM memory leak + add tqdm progress + update overseer report
+1030cc1 | 2026-02-10 | SERVER-246 | fix(lint): resolve all I001 import sorting + SIM105 in inference_server/
+f9aefe8 | 2026-02-10 | SERVER-246 | docs: update overseer report with commit hash 1b5b1a0
+1b5b1a0 | 2026-02-10 | SERVER-246 | feat(V2): wire per-backbone V1-matching plots + fix Pylance errors
+bee0f3b | 2026-02-10 | SERVER-246 | feat(V2): complete all missing phases — pseudo_labels, evaluation, ensemble_v2, validation, visualization, orchestrator
+270eceb | 2026-02-07 | SERVER-246 | feat: V2 segmentation dual-head training infrastructure (Phase 3)
+65f2edb | 2026-02-06 | SERVER-246 | feat(server): multi-model ensemble inference + validation + full API
+aba03a8 | 2026-02-06 | SERVER-246 | docs: update overseer report with Sprint 3A completion details
+ba903cd | 2026-02-06 | SERVER-246 | feat(sprint-3a): add FastAPI inference server foundation
+feaecf5 | 2026-02-06 | SERVER-246 | fix(pylance): resolve 14 diagnostics in ensemble_plots.py + update overseer report
+26c4c78 | 2026-02-06 | SERVER-246 | fix(compat): add PEP 563 annotations to ensemble_system files for Python 3.9 support
+3a069e5 | 2026-02-06 | SERVER-246 | docs: Update PROJECT_OVERSEER_REPORT with Python 3.9 compatibility fixes
+5efa55c | 2026-02-05 | SERVER-246 | fix: Add 'from __future__ import annotations' for Python 3.9 compatibility
+85be6ac | 2026-02-05 | SERVER-246 | fix: Add 'from __future__ import annotations' for Python 3.9 compatibility
+04a7237 | 2026-02-05 | SERVER-246 | docs: Update PROJECT_OVERSEER_REPORT with ONNX export fix details (2026-02-05)
+d247501 | 2026-02-05 | SERVER-246 | fix(tests): use legacy ONNX exporter (dynamo=False) for file size test
+dcb7761 | 2026-02-05 | SERVER-246 | fix(tests): use ONNX opset 18 to fix CI export test failure
+2e80223 | 2026-02-05 | SERVER-246 | fix(tests): use CustomConvNeXt for ONNX/TorchScript file size tests
+6aee0af | 2026-02-05 | SERVER-246 | fix: Add missing requirements-dev.txt and fix CI workflow
+309d2e6 | 2026-02-05 | SERVER-246 | docs: Update PROJECT_OVERSEER_REPORT with Sprint 2 completion details (2026-02-05)
+215def6 | 2026-02-05 | SERVER-246 | fix: Include disease_classifier_gui.py in CI lint scope (noqa comments added)
+dda6ce7 | 2026-02-05 | SERVER-246 | fix: resolve Pylance type errors in GUI (Optional types, Tensor annotation)
+c72bfdc | 2026-02-05 | SERVER-246 | fix: Resolve all Pylance errors and update CI lint scope
+f427aa6 | 2026-02-05 | SERVER-246 | fix: Resolve Pylance warnings and Ruff lint errors across codebase
+b87fde2 | 2026-02-05 | SERVER-246 | fix: Resolve all remaining CI lint/type issues properly
+e620b91 | 2026-02-05 | SERVER-246 | fix: Resolve ALL Ruff lint errors in BASE-BACK/src/
+b8aa2fe | 2026-02-05 | SERVER-246 | fix: Resolve ALL remaining CI issues (lint + tests)
+b6dd56f | 2026-02-05 | SERVER-246 | fix: Add missing paths to Docker workflow triggers
+b56870f | 2026-02-04 | SERVER-246 | fix: Complete Docker fixes for all workflows
+a176e0c | 2026-02-04 | SERVER-246 | fix: Real CI/Docker fixes - no workarounds
+cd04139 | 2026-02-04 | SERVER-246 | fix: Resolve CI workflow failures
+945751c | 2026-02-04 | SERVER-246 | feat: Add Sprint 1 & Sprint 2 CI/CD infrastructure
 8b7f486 | 2025-12-25 | SERVER-246 | Update README.md
 7030bdd | 2025-12-25 | SERVER-246 | Update repository URL in README
 850ad7e | 2025-12-15 | SERVER-246 | feat: Add comprehensive dependency management and setup verification
@@ -143,6 +187,20 @@ a9ddf19 | 2025-12-08 | SERVER-246 | Add GUI application with image validation fi
 | 2025-12-08 | GUI application added | Commit `a9ddf19` |
 | 2025-12-15 | Dependency management finalized | Commit `850ad7e` |
 | 2025-12-25 | README updates | Commits `7030bdd`, `8b7f486` |
+| 2026-02-04 | Sprint 1 & 2 CI/CD infrastructure | Commit `945751c` (13 follow-up CI fixes) |
+| 2026-02-06 | Sprint 3A: Inference server foundation | Commits `ba903cd`, `65f2edb` |
+| 2026-02-07 | V2 segmentation infrastructure (Phase 3) | Commit `270eceb` |
+| 2026-02-10 | V2 all phases completed + per-backbone plots | Commits `bee0f3b`, `1b5b1a0` |
+| 2026-02-11 | V2 bug fixes (CUDA OOM, tqdm, model_factory) | Commit `7e4c3eb` |
+| 2026-02-13 | V2 Training Run 1 complete (11/15 good) | Training logs |
+| 2026-02-14 | V2 Training Run 2 + deeper transformer fix | Commit `7b17617` |
+| 2026-02-15 | V2 Training Run 3 complete | Swin 87%, ViTHybrid 90% fixed |
+| 2026-02-16 | V2 BFloat16 core fix (universal NaN resolved) | Commit `b09bdfa` |
+| 2026-02-17 | V2 Training Run 4 complete (15/15, 96.14%) | Commit `b61f7ff` |
+| 2026-02-18 | V2 Phase 3.5 OOF pipeline added | Commits `135b35a`, `2577bcd`, `900ff1a` |
+| 2026-02-24 | V2 Phase 3.5 OOF complete (15/15×20, 156.6 hrs) | OOF output files |
+| 2026-02-25 | V2 Stages 4/5/6 implemented + wired | Commit `63c232b` |
+| 2026-04-01 | OOF generator bug fixes + .gitignore cleanup | Commit `f47afc1` |
 
 ### Pre-Git Timeline (from Filesystem Artifacts)
 
@@ -168,7 +226,7 @@ a9ddf19 | 2025-12-08 | SERVER-246 | Add GUI application with image validation fi
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| Python Source Files | 118 | Core training, models, ensemble, GUI, V2 segmentation (70 new) |
+| Python Source Files | 121 | Core training, models, ensemble, GUI, V2 segmentation (73 incl. 3 new V2 stages) |
 | Markdown Documentation | 17 | README, guides, architecture docs |
 | JSON Configuration/Metrics | 55+ | Training metrics, export info, ensemble results |
 | Model Checkpoints | 40 | .pth files (backbones + ensembles) |
@@ -195,7 +253,7 @@ a9ddf19 | 2025-12-08 | SERVER-246 | Add GUI application with image validation fi
 | `ANDROID_DEPLOYMENT_PLAN.md` | Docs | Mobile deployment roadmap | git:2025-12-04 | Active |
 | `SETUP_AND_DEPENDENCIES.md` | Docs | Setup instructions | git:2025-12-15 | Active |
 | `LICENSE` | Legal | MIT License | git:2025-12-04 | Active |
-| `.gitignore` | Config | Git ignore rules (112 lines) | git:2025-12-04 | Active |
+| `.gitignore` | Config | Git ignore rules (115 lines, excludes Paper_redrot/, annotations/, *.log.*) | git:2026-04-01 | Active |
 
 ### BASE-BACK/ Module Structure
 
@@ -229,7 +287,7 @@ a9ddf19 | 2025-12-08 | SERVER-246 | Add GUI application with image validation fi
 | `ensemble_system/ensemble_plots.py` | Ensemble visualization | ~300 | Active |
 | `ensemble_system/configs/ensemble_config.yaml` | Ensemble hyperparameters | ~100 | Active |
 
-### V2_segmentation/ Module Structure (70 files — Sprint 3-Seg)
+### V2_segmentation/ Module Structure (73 files — Sprint 3-Seg)
 
 | Submodule | File Path | Purpose | Status |
 |-----------|-----------|---------|--------|
@@ -967,7 +1025,7 @@ CI/CD infrastructure fully configured:
 
 ## CURRENT STATUS & TECHNICAL DEBT
 
-### Overall Health: � **Yellow** (BF16 fix applied, Run 4 pending)
+### Overall Health: 🟢 **Green** (Run 4 complete, Phase 3.5 OOF complete, Stages 4/5/6 built)
 
 The project is production-ready with:
 - ✅ All 15 backbone models trained
@@ -977,6 +1035,11 @@ The project is production-ready with:
 - ✅ Multi-format exports available
 - ✅ **Sprint 1 completed** — Repository baseline established
 - ✅ **Sprint 2 completed** — CI/CD pipeline fully functional
+- ✅ **Sprint 3A completed** — FastAPI inference server foundation
+- ✅ **V2 Run 4 completed** — 15/15 backbones, ensemble 96.14%, zero NaN
+- ✅ **Phase 3.5 OOF completed** — 15/15 × 20 folds = 300 total, 156.6 hrs
+- ✅ **V2 Stages 4/5/6 built** — Feature Fusion, MoE, Meta-Learner wired into orchestrator
+- 🟡 **Ensemble re-run (Phases 4-6)** — READY, awaiting execution
 
 ### Sprint 1 Analysis Results (2026-02-04)
 
@@ -1435,7 +1498,7 @@ The project is production-ready with:
       - Total training time: **23.7 hours** (Phase 3: 23.4h, Phase 4: 14.2m, Phase 5: audit, Phase 6: plots)
       - BFloat16 pipeline confirmed stable — no scaler needed, no overflow
 
-29. 🟡 **Sprint 3-Seg: V2 Phase 3.5 OOF Generation Pipeline** (2026-02-17, 3 files modified)
+29. ✅ **Sprint 3-Seg: V2 Phase 3.5 OOF Generation Pipeline** (2026-02-17, 3 files modified)
     - **Problem**: Ensemble stages 3 (stacking), 9 (cascaded), 10 (adversarial), 11 (referee), 12 (distillation) all require OOF predictions (`{backbone}_oof_probs.npy`). No pipeline phase generated these — `OOFGenerator` class existed but was never wired into any phase.
     - **Solution**: Added Phase 3.5 to pipeline — true K-fold OOF generation using V2 pretrained backbone weights:
       1. Load `*_v2_final.pth` checkpoint, extract `backbone.*` keys
@@ -1445,8 +1508,19 @@ The project is production-ready with:
       - `V2_segmentation/evaluation/oof_generator.py`: Added `generate_v2_oof()` (~130 lines) + `generate_all_v2_oof()` (~60 lines), fixed AMP calls in `_quick_train()` and `_predict()`
       - `V2_segmentation/run_pipeline_v2.py`: Added "3.5" to PHASES list, `_phase_35_oof()` handler, updated docstring + CLI help
       - `V2_segmentation/config.py`: `K_FOLDS = 5` → `K_FOLDS = 20`
-    - **Status**: Code complete and validated (zero Pylance errors, dry-run passes). Awaiting execution.
-    - **Impact**: Once run, all 12 ensemble stages will be operational (currently only stages 1, 2, 8 work)
+    - **Status**: ✅ COMPLETE — 15/15 backbones × 20 folds = 300 total folds, 156.6 hours, 0 errors. OOF accuracies: ConvNeXt 98.85%, GhostNetV2 98.74%, InceptionV4 97.88%.
+    - **Impact**: All 12 ensemble stages now operational (stacking, cascaded, adversarial, referee, distillation)
+
+30. ✅ **OOF Generator Bug Fixes + .gitignore Cleanup** (2026-04-01, commit `f47afc1`)
+    - **Bug Fixes in `V2_segmentation/evaluation/oof_generator.py`:**
+      - Fixed typo: `total_mem` → `total_memory` (CUDA device property)
+      - Removed unused `batch_idx` loop variables (replaced with `_`)
+      - Added `assert outputs is not None` after dict extraction in `_quick_train()` to satisfy type checker
+    - **.gitignore Updates:**
+      - Added `Paper_redrot/` — research papers/PDFs directory (not source code)
+      - Added `annotations/` — annotation data directory
+      - Added `*.log.*` — rotated log files (training.log.1, training_errors.log.2, etc.)
+    - **Status**: ✅ Pushed to GitHub (`f47afc1` on `main`)
 
 ### Partial Items ⚠️
 
@@ -1505,7 +1579,7 @@ The project is production-ready with:
 | 13 | ~~**Sprint 3-Seg: V2 Training Run 4**~~ | Full clean rerun of all 15 backbones with BF16 pipeline | HIGH | ✅ DONE (15/15, 96.14%) |
 | 13b | ~~**Sprint 3-Seg: V2 BF16→NumPy Fix**~~ | `.float()` before `.cpu().numpy()` in 3 files (trainer, OOF, ensemble) | HIGH | ✅ DONE |
 | 14 | **Sprint 3-Seg: V2 Ensemble & Validation** | 12-stage ensemble (stages 1,2,8 done; 3,9-12 need OOF) | HIGH | ⚠️ PARTIAL |
-| 14b | **Sprint 3-Seg: V2 Phase 3.5 OOF Generation** | K=20 fold OOF predictions for stacking/cascaded/adversarial/referee | HIGH | 🟡 PENDING |
+| 14b | ~~**Sprint 3-Seg: V2 Phase 3.5 OOF Generation**~~ | K=20 fold OOF predictions for stacking/cascaded/adversarial/referee | HIGH | ✅ DONE (15/15×20, 156.6 hrs) |
 | 15 | **Sprint 3B: Inference Server Hardening** | Production reliability | MEDIUM | 🔲 TODO |
 | 16 | **Sprint 4: Model Governance** | Deployment discipline | MEDIUM | 🔲 TODO |
 | 17 | **Sprint 5: Production Safeguards** | Continuous validation | MEDIUM | 🔲 TODO |
@@ -1790,12 +1864,15 @@ Get-ChildItem "Data\" -Recurse -File |
 | 2026-02-16 | *(started)* | **V2 Run 4 (Full Clean Rerun)** | Started 14:08. All 15 backbones completed by 2026-02-17 (23.7 hours) |
 | 2026-02-17 | *(completed)* | **V2 Run 4 Complete** | 15/15 backbones, ensemble 96.14% (hard voting), zero NaN. ViTHybrid 91.33% |
 | 2026-02-17 | *(added)* | **V2 Phase 3.5 OOF Pipeline** | Added K=20 fold OOF generation (3 files). Enables ensemble stages 3, 9-12 |
+| 2026-02-24 | *(completed)* | **V2 Phase 3.5 OOF Complete** | 15/15×20 folds = 300 total, 156.6 hrs, 0 errors. Top: ConvNeXt 98.85% |
+| 2026-02-25 | 63c232b | **V2 Stages 4/5/6 Implementation** | 3 new modules (feature_fusion_v2, mixture_experts_v2, meta_learner_v2) + orchestrator wiring |
+| 2026-04-01 | f47afc1 | **OOF Generator Bug Fixes + .gitignore** | total_mem typo, unused vars, assert. Paper_redrot/ + annotations/ + *.log.* ignored |
 
-#### Current State Summary (February 2026)
+#### Current State Summary (April 2026)
 
 | Metric | Value |
 |--------|-------|
-| Project Duration | ~3.5 months (Nov 2025 - Feb 2026) |
+| Project Duration | ~5 months (Nov 2025 - Apr 2026) |
 | Dataset Images | 10,607 (13 classes) |
 | Backbone Models | 15 custom architectures |
 | Ensemble Stages | 12 (V1: 7 + V2: 5 new) |
@@ -1804,7 +1881,7 @@ Get-ChildItem "Data\" -Recurse -File |
 | Distilled Student | 93.21% (24 MB, V1) |
 | Model Storage | ~8 GB (checkpoints + exports) |
 | Git-tracked Files | 131+ |
-| V2 Segmentation Files | 70 (across 8 modules, +2 visualization files) |
+| V2 Segmentation Files | 73 (across 8 modules, +3 new V2 stage files) |
 | V2 Bug Fix Files Modified | 33 total (12 in Run 1 + 7 in transformer fix + 2 in deeper fix + 6 in BF16 core fix + 3 in BF16→NumPy fix + 3 in Phase 3.5 OOF) |
 | V2 Run 1 Result | 11/15 good (92-96%), 4 transformers failed |
 | V2 Run 1 Best Backbone | CustomConvNeXt (95.38%) |
@@ -1818,12 +1895,12 @@ Get-ChildItem "Data\" -Recurse -File |
 | V2 Run 4 Best Backbone | CustomDynamicConvNet (95.85% val, 94.53% test) |
 | V2 Run 4 Ensemble | Hard voting 96.14%, Soft voting 96.04%, Weighted voting 96.04% |
 | V2 K_FOLDS | 20 (changed from 5 for Phase 3.5 OOF generation) |
-| V2 Phase 3.5 OOF | 🟡 PENDING -- code added to oof_generator.py, run_pipeline_v2.py, config.py. Awaiting execution |
+| V2 Phase 3.5 OOF | ✅ COMPLETE -- 15/15×20 folds = 300 total, 156.6 hrs, 0 errors. Top: ConvNeXt 98.85%, GhostNetV2 98.74% |
 | Tests Passing | 51 (+ 30 slow skipped) |
 | CI/CD Status | ✅ Fully Operational |
 | Ruff Lint Errors | 0 |
 | Pylance Type Errors | 0 |
-| V2 Pipeline Status | ✅ Run 4 COMPLETE: 15/15 backbones, ensemble 96.14%, zero NaN. Phase 3.5 OOF pending |
+| V2 Pipeline Status | ✅ Run 4 COMPLETE: 15/15 backbones, ensemble 96.14%, zero NaN. Phase 3.5 OOF COMPLETE. Stages 4/5/6 BUILT |
 | V2 Pipeline Errors | 0 |
 | GPU | NVIDIA RTX 4500 Ada, 24GB VRAM, Compute 8.9, BF16 native support |
 
@@ -1835,22 +1912,22 @@ Get-ChildItem "Data\" -Recurse -File |
 # PROJECT_OVERSEER_REPORT_DISEASE.md
 
 **Generated:** 2026-01-29T12:00:00Z  
-**Last Updated:** 2026-02-17 (V2 Run 4 COMPLETE -- 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF added, K_FOLDS=20)  
+**Last Updated:** 2026-04-01 (OOF generator bug fixes, .gitignore cleanup, report sync)  
 **Repository Root Path:** `F:\DBT-Base-DIr`  
 **Current Git Branch:** `main`  
-**Current HEAD Commit Hash:** `b61f7ff`  
-**Short One-Line HEALTH:** Green -- V2 Run 4 COMPLETE: 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF pipeline added (K=20). Zero NaN.
+**Current HEAD Commit Hash:** `f47afc1`  
+**Short One-Line HEALTH:** Green -- Phase 3.5 OOF COMPLETE (15/15×20, 156.6 hrs). V2 Stages 4/5/6 BUILT. Ensemble re-run READY.
 
 ---
 
 ## STATUS SUMMARY (3 Bullets)
 
-- **Health Verdict:** V2 Run 4 COMPLETE: 15/15 backbones, ensemble 96.14% (hard voting), zero NaN. Phase 3.5 OOF added (K=20 folds). Top: DynamicConvNet 95.85%, CSPDarkNet 95.76%.
+- **Health Verdict:** Phase 3.5 OOF COMPLETE (15/15×20, 156.6 hrs). V2 Stages 4/5/6 BUILT & WIRED. Ensemble re-run READY.
 - **Top 3 Prioritized Actions:**
-  1. All Sprints through V2 Run 4 -- COMPLETE
-  2. V2 Phase 3.5 OOF Generation -- PENDING (K=20 folds, enables ensemble stages 3, 9-12)
-  3. Sprint 3B: Inference Server Hardening -- After Phase 3.5 + Re-ensemble
-- **Completeness Summary:** 390+ files; 131+ git-tracked; 70 V2 files; 33 files modified across fixes; 0 Pylance errors
+  1. ~~Phase 3.5 OOF Generation~~ ✅ COMPLETE (15/15×20, 156.6 hrs)
+  2. **V2 Ensemble Re-run (Phases 4-6)** -- READY (output dirs cleaned, new stages wired)
+  3. **Sprint 3B: Inference Server Hardening** -- After ensemble re-run
+- **Completeness Summary:** 390+ files; 131+ git-tracked; 73 V2 files; 36 files modified across fixes; 0 Pylance errors
 ```
 
 ---
@@ -1859,13 +1936,13 @@ Get-ChildItem "Data\" -Recurse -File |
 
 **Report Generated By:** Sugam Singh  
 *Full Path: `F:\DBT-Base-DIr\PROJECT_OVERSEER_REPORT_DISEASE.md`*  
-*Last Updated: 2026-02-17 (V2 Run 4 COMPLETE -- 15/15 backbones, ensemble 96.14%. Phase 3.5 OOF added)*  
+*Last Updated: 2026-04-01 (OOF generator bug fixes, .gitignore cleanup, report sync)*  
 *Total Files Analyzed: 390+ documented + 10,607 dataset images*  
 *Total Model Storage: ~8 GB (checkpoints + exports)*  
 *Total Training Data: 10,607 images (13 classes)*  
 *Total Tests Passing: 51 (+ 30 slow tests skipped by design)*  
-*V2 Segmentation Files: 70 Python files across 8 modules*  
-*V2 Bug Fix Files: 33 total (12 Run 1 + 7 transformer + 2 deeper + 6 BF16 core + 3 BF16→NumPy + 3 Phase 3.5 OOF)*  
+*V2 Segmentation Files: 73 Python files across 8 modules (3 new stage files)*  
+*V2 Bug Fix Files: 36 total (12 Run 1 + 7 transformer + 2 deeper + 6 BF16 core + 3 BF16→NumPy + 3 Phase 3.5 OOF + 3 stages 4/5/6)*  
 *V2 Run 1: 11/15 good (92-96%), 4 transformers failed (grad ckpt hook corruption)*  
 *V2 Run 2: DeiTStyle fixed (93.31%), Swin/ViTHybrid still 4.71% (FP16 overflow), MaxViT 79%, CoAtNet 77%*  
 *V2 Run 3: Swin 87.09% FIXED, ViTHybrid 90.29% FIXED, MaxViT 77.47%, CoAtNet 75.68%*  
@@ -1873,6 +1950,9 @@ Get-ChildItem "Data\" -Recurse -File |
 *V2 Architecture Fix: Pre-multiply attention scale, FP32 matmul, double-residual removal in MaxViT/CoAtNet*  
 *V2 BF16→NumPy Fix: `.float()` before `.cpu().numpy()` in 3 files (trainer, OOF, ensemble)*
 *V2 Run 4: COMPLETE -- 15/15 backbones (best: DynamicConvNet 95.85%), ensemble 96.14%, zero NaN, 23.7 hours*  
-*V2 Phase 3.5: OOF generation pipeline added (K=20 folds, 3 files modified). Awaiting execution*  
+*V2 Phase 3.5: OOF COMPLETE -- 15/15×20 folds = 300 total, 156.6 hrs, 0 errors. Top: ConvNeXt 98.85%, GhostNetV2 98.74%*  
+*V2 Stages 4/5/6: BUILT & WIRED -- Feature Fusion, Mixture of Experts, Meta-Learner (commit 63c232b)*  
+*OOF Generator Fixes: total_mem typo, unused vars, assert (commit f47afc1)*  
+*.gitignore: Paper_redrot/, annotations/, *.log.* now excluded*  
 *CI Pipeline: \u2705 Fully Operational (Ruff + Pyright + pytest + Docker)*  
 *Reference Document: [DISEASE_PIPELINE_NEXT_STEPS_PLAN.md](DISEASE_PIPELINE_NEXT_STEPS_PLAN.md)*
