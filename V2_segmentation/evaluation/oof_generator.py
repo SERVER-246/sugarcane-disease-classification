@@ -460,7 +460,7 @@ class OOFGenerator:
         if torch.cuda.is_available():
             logger.info(
                 f"  GPU: {torch.cuda.get_device_name(0)}, "
-                f"VRAM: {torch.cuda.get_device_properties(0).total_mem / 1024**3:.1f} GB"
+                f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB"
             )
 
         for i, backbone_name in enumerate(BACKBONES, 1):
@@ -555,7 +555,7 @@ class OOFGenerator:
             correct = 0
             total = 0
 
-            for batch_idx, (images, targets) in enumerate(train_loader):
+            for _, (images, targets) in enumerate(train_loader):
                 images = images.to(DEVICE)
                 targets = targets.to(DEVICE)
 
@@ -564,6 +564,7 @@ class OOFGenerator:
                     outputs = model(images)
                     if isinstance(outputs, dict):
                         outputs = outputs.get("cls_logits", outputs.get("logits"))
+                    assert outputs is not None
                     loss = criterion(outputs, targets)
 
                 loss.backward()
@@ -595,7 +596,7 @@ class OOFGenerator:
         total_samples = 0
         model.eval()
         with torch.no_grad():
-            for batch_idx, (images, _) in enumerate(loader):
+            for _, (images, __) in enumerate(loader):
                 images = images.to(DEVICE)
                 with torch.amp.autocast("cuda", enabled=AMP_ENABLED, dtype=AMP_DTYPE):  # type: ignore[attr-defined]
                     outputs = model(images)

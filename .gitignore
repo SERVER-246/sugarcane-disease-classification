@@ -47,6 +47,7 @@ deployment_models/
 
 # Training Outputs and Logs
 *.log
+*.log.*
 debug_logs/
 debug_tmp/
 training.log
@@ -76,6 +77,10 @@ v2_pipeline_errors.log*
 Data/
 split_dataset/
 Diseases/
+
+# Research papers / PDFs (not source code)
+Paper_redrot/
+annotations/
 
 # IDE and Editor
 .vscode/
