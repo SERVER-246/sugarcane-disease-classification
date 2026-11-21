@@ -31,10 +31,15 @@ _validator: ImageValidator | None = None
 
 
 def get_validator() -> ImageValidator:
-    """Get or create the image validator singleton."""
+    """Get or create the image validator singleton (with configured leniency)."""
     global _validator  # noqa: PLW0603
     if _validator is None:
+        from inference_server import config
         _validator = ImageValidator(use_deep_learning=True)
+        # Relax the green-vegetation / sugarcane heuristics so diseased close-ups
+        # (brown/purple tissue) are not wrongly rejected. Config-driven.
+        _validator.MIN_VEGETATION_SCORE = config.VALIDATION_MIN_VEGETATION
+        _validator.MIN_SUGARCANE_CONFIDENCE = config.VALIDATION_MIN_SUGARCANE
     return _validator
 
 

@@ -26,6 +26,7 @@ from inference_server.engine.multi_loader import (
     get_model_device,
     get_student_model,
 )
+from inference_server.engine.v2_loader import get_v2_classifiers
 from inference_server.engine.validation import validate_image_bytes
 
 
@@ -218,6 +219,14 @@ def predict_all_models(
                 predictions.append(pred)
             except Exception as e:
                 logger.warning("Failed to run student model: %s", e)
+
+    # Run Model 2 (V2 dual-head classifiers) if enabled — folds their votes in.
+    for v2_name, v2_model in get_v2_classifiers().items():
+        try:
+            pred = predict_single_model(v2_model, v2_name, tensor, class_names)
+            predictions.append(pred)
+        except Exception as e:
+            logger.warning("Failed to run V2 model %s: %s", v2_name, e)
 
     # Ensemble voting
     if not predictions:

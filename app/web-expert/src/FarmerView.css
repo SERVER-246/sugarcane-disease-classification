@@ -1,0 +1,123 @@
+.farmer {
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.farmer-tagline {
+  text-align: center;
+  color: var(--muted);
+  font-size: 1rem;
+  margin: 4px 0 18px;
+}
+
+.farmer-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.big-btn {
+  padding: 18px 20px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  border-radius: 16px;
+  border: 2px solid #cfe7dd;
+  background: #fff;
+  cursor: pointer;
+  transition: transform .05s ease, box-shadow .15s ease;
+}
+.big-btn:active { transform: translateY(1px); }
+.big-btn.capture {
+  background: linear-gradient(120deg, var(--accent), #059669);
+  color: #fff; border: none;
+  box-shadow: 0 8px 20px rgba(16,185,129,.35);
+  font-size: 1.3rem; padding: 22px;
+}
+.big-btn.primary {
+  background: linear-gradient(120deg, #0ea5e9, #2563eb);
+  color: #fff; border: none;
+  box-shadow: 0 8px 20px rgba(14,165,233,.35);
+}
+.big-btn.ghost { background: #f4faf7; color: #334e45; }
+.big-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+
+.farmer-preview {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
+.farmer-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.farmer-confirm {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+}
+.farmer-confirm p { margin: 0 0 12px; color: #92400e; font-weight: 600; }
+
+.farmer-result { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---------- Traffic-light status card ---------- */
+.status-card {
+  border-radius: 20px;
+  padding: 26px 22px;
+  text-align: center;
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.status-card.green { background: linear-gradient(135deg, #10b981, #059669); }
+.status-card.red { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+.status-card.amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.status-icon {
+  width: 68px; height: 68px; margin: 0 auto 12px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.22);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.4rem; font-weight: 800;
+}
+.status-text { font-size: 1.7rem; font-weight: 800; line-height: 1.2; }
+.status-conf { margin-top: 8px; font-size: 1rem; opacity: .95; font-weight: 600; }
+
+.farmer-visual { text-align: center; }
+.farmer-overlay-stack {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: #000;
+}
+.farmer-overlay-stack .layer {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill;
+}
+.farmer-caption { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+
+.farmer-guidance {
+  background: linear-gradient(90deg, #ecfeff, #fff);
+  border-left: 6px solid #0ea5e9;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.farmer-guidance h3 { margin: 0 0 6px; }
+.farmer-guidance .consult { font-weight: 700; color: #075985; margin-top: 8px; }
+
+.farmer-action {
+  background: #f4faf7;
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.farmer-action h3 { margin: 0 0 6px; color: #065f46; }

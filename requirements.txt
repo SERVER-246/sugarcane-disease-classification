@@ -105,3 +105,5 @@ sphinx-rtd-theme==2.0.0
 # 4. For CPU-only, use standard PyTorch installation
 # 5. Optional packages for specific features can be installed on-demand
 # 6. All 15 backbones and ensemble stages require core packages
+
+fpdf2>=2.8,<3.0

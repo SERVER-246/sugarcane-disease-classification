@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "status": "PLACEHOLDER",
+    "note": "Placeholder remedial-measures content for the DBT Q1 'remedial measures database'. Replace the text below with agronomy-reviewed content before field release.",
+    "version": "0.1"
+  },
+  "diseases": {
+    "Red_rot": {
+      "display_name": "Red Rot",
+      "summary": "PLACEHOLDER: Red rot is a serious fungal disease (Colletotrichum falcatum) of sugarcane affecting the stalk and midrib. Confirm with the symptom overlay before acting.",
+      "immediate_actions": [
+        "PLACEHOLDER: Rogue out and destroy visibly infected clumps.",
+        "PLACEHOLDER: Avoid moving setts from affected fields."
+      ],
+      "management": [
+        "PLACEHOLDER: Use resistant varieties and disease-free seed material.",
+        "PLACEHOLDER: Treat setts before planting as per recommended protocol.",
+        "PLACEHOLDER: Improve field drainage and follow crop rotation."
+      ],
+      "references": []
+    },
+    "_default": {
+      "display_name": "General",
+      "summary": "PLACEHOLDER: No specific remedial content is configured for this disease yet.",
+      "immediate_actions": [
+        "PLACEHOLDER: Consult a sugarcane pathologist for confirmation."
+      ],
+      "management": [
+        "PLACEHOLDER: Follow integrated disease management practices."
+      ],
+      "references": []
+    }
+  }
+}

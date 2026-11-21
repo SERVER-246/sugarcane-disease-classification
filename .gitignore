@@ -130,3 +130,22 @@ run_output.txt
 
 # Batch files (Windows specific)
 *.bat
+
+# Web Expert View (Q5/Q6)
+app/web-expert/node_modules/
+app/web-expert/dist/
+
+# Android Expert View (Q5/Q6)
+app/android-expert/.gradle/
+app/android-expert/build/
+app/android-expert/app/build/
+app/android-expert/local.properties
+
+# Secrets / credentials (never commit)
+credentials.json
+token.json
+drive_api_key.txt
+*.credentials.json
+
+# Large bundled sample asset (kept local; add manually for the Sample button)
+app/android-expert/app/src/main/assets/sample_redrot.jpg

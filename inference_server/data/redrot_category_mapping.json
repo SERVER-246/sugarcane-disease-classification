@@ -1,0 +1,23 @@
+{
+  "background": 0,
+  "Acervuli": 1,
+  "Bud Sprouting": 2,
+  "Drying": 3,
+  "Inside_cane_reddening": 4,
+  "Leaf sheath infection": 5,
+  "Mid-rib infection": 6,
+  "Nodal Constriction": 7,
+  "Nodal break-off": 8,
+  "Nodal discoloration": 9,
+  "Nodal sporulation": 10,
+  "Outside_nodal_rooting": 11,
+  "Red Rot Root Infection": 12,
+  "Rind Splitting": 13,
+  "Seedling Death": 14,
+  "Spindle infection": 15,
+  "Whorl Infection": 16,
+  "Yellowing": 17,
+  "bud_death": 18,
+  "outside_rind_discoloration": 19,
+  "white spot": 20
+}

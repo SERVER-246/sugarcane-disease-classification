@@ -5,6 +5,8 @@ Request / response models for the inference server API.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -132,6 +134,49 @@ class ClassesListResponse(BaseModel):
     """List of all classification classes."""
     classes: list[ClassInfo]
     total: int = Field(..., examples=[13])
+
+
+# =============================================================================
+# Expert View (two-stage) Schemas
+# =============================================================================
+
+class SymptomInfo(BaseModel):
+    """A detected Red Rot symptom region."""
+    name: str = Field(..., examples=["Nodal discoloration"])
+    pixel_fraction: float = Field(..., ge=0.0, le=1.0, examples=[0.031])
+    mean_confidence: float = Field(..., ge=0.0, le=1.0, examples=[0.62])
+    color: str = Field(default="#000000", examples=["#e6194b"])
+
+
+class RedRotSegmentation(BaseModel):
+    """Stage 2 Red Rot symptom-segmentation result."""
+    backbone: str = Field(..., examples=["CustomResNetMish"])
+    affected_area_pct: float = Field(..., ge=0.0, le=100.0, examples=[12.4])
+    dominant_symptom: str | None = Field(default=None, examples=["nodal_discoloration"])
+    symptoms: list[SymptomInfo] = Field(default_factory=list)
+    num_symptom_classes_detected: int = Field(..., examples=[3])
+    overlay_png_b64: str = Field(..., description="Base64 RGBA PNG symptom overlay at mask resolution")
+    mask_height: int = Field(..., examples=[512])
+    mask_width: int = Field(..., examples=[512])
+
+
+class ExpertResult(BaseModel):
+    """Two-stage Expert View result: broad classification + optional Red Rot specialist."""
+    classification: EnsembleResult
+    stage2_ran: bool = Field(..., examples=[True])
+    redrot_segmentation: RedRotSegmentation | None = None
+    remedial: dict[str, Any] = Field(default_factory=dict)
+    note: str | None = Field(default=None)
+
+    # Reconciled verdict across the broad screen and the Red Rot specialist.
+    overall_verdict: str = Field(default="", examples=["Red_rot — symptoms detected (12.2% area)"])
+    disagreement: bool = Field(default=False, examples=[True])
+    low_confidence: bool = Field(default=False, examples=[True])
+    verdict_reason: str | None = Field(default=None)
+
+    # Server-computed traffic-light status for the Farmer View (single source of truth).
+    farmer_status: str = Field(default="green", examples=["red"])  # green | amber | red
+    farmer_disease: str | None = Field(default=None, examples=["Red_rot"])
 
 
 # =============================================================================

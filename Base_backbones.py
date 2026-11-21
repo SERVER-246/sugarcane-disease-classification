@@ -360,7 +360,7 @@ def check_export_dependencies():
         import tensorflow as _tf  # noqa: F401
         deps['tensorflow'] = True
         del _tf
-    except ImportError:
+    except (ImportError, AttributeError, Exception):
         pass
 
     try:
@@ -3786,6 +3786,7 @@ class CustomSwinTransformer(nn.Module):
             depths = [2, 2, 18, 2]
         super().__init__()
         self._num_classes = _num_classes
+        self.img_size = img_size
         self.num_layers = len(depths)
         self.embed_dim = embed_dim
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
@@ -3872,13 +3873,23 @@ class CustomSwinTransformer(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
+        if x.shape[-2:] != (self.img_size, self.img_size):
+            x = F.interpolate(x, size=(self.img_size, self.img_size), mode='bilinear', align_corners=False)
+
         # Patch embedding
         x = self.patch_embed(x)  # (B, C, H, W)
-        _b, _c, _h, _w = x.shape  # Extract shape for reference, used in comments
+        _b, _c, _h, _w = x.shape
         x = x.flatten(2).transpose(1, 2)  # (B, H*W, C)
 
-        # FIXED: Add absolute positional encoding
-        x = x + self.absolute_pos_embed
+        # Resize absolute positional embeddings when input resolution changes.
+        if x.shape[1] != self.absolute_pos_embed.shape[1]:
+            old_hw = int(self.absolute_pos_embed.shape[1] ** 0.5)
+            pos_embed = self.absolute_pos_embed.reshape(1, old_hw, old_hw, _c).permute(0, 3, 1, 2)
+            pos_embed = F.interpolate(pos_embed, size=(_h, _w), mode='bicubic', align_corners=False)
+            pos_embed = pos_embed.permute(0, 2, 3, 1).reshape(1, _h * _w, _c)
+            x = x + pos_embed
+        else:
+            x = x + self.absolute_pos_embed
         x = self.pos_drop(x)
 
         # Apply stages
@@ -4409,7 +4420,19 @@ class CustomViTHybrid(nn.Module):
         x = torch.cat([cls_tokens, x], dim=1)  # (B, 197, 768)
 
         # Add positional encoding
-        x = x + self.pos_embed
+        if x.shape[1] != self.pos_embed.shape[1]:
+            cls_pos = self.pos_embed[:, :1, :]
+            patch_pos = self.pos_embed[:, 1:, :]
+            old_hw = int(patch_pos.shape[1] ** 0.5)
+            new_hw = int((x.shape[1] - 1) ** 0.5)
+            patch_pos = patch_pos.transpose(1, 2).reshape(1, self.embed_dim, old_hw, old_hw)
+            patch_pos = F.interpolate(patch_pos, size=(new_hw, new_hw), mode='bicubic', align_corners=False)
+            patch_pos = patch_pos.reshape(1, self.embed_dim, new_hw * new_hw).transpose(1, 2)
+            pos_embed = torch.cat([cls_pos, patch_pos], dim=1)
+        else:
+            pos_embed = self.pos_embed
+
+        x = x + pos_embed
         x = self.pos_drop(x)
 
         # Deep transformer processing
@@ -4743,7 +4766,20 @@ class CustomDeiTStyle(nn.Module):
         dist_tokens = self.dist_token.expand(B, -1, -1)
         x = torch.cat([cls_tokens, dist_tokens, x], dim=1)
 
-        x = x + self.pos_embed
+        if x.shape[1] != self.pos_embed.shape[1]:
+            token_pos = self.pos_embed[:, :2, :]
+            patch_pos = self.pos_embed[:, 2:, :]
+            embed_dim = patch_pos.shape[-1]
+            old_hw = int(patch_pos.shape[1] ** 0.5)
+            new_hw = int((x.shape[1] - 2) ** 0.5)
+            patch_pos = patch_pos.transpose(1, 2).reshape(1, embed_dim, old_hw, old_hw)
+            patch_pos = F.interpolate(patch_pos, size=(new_hw, new_hw), mode='bicubic', align_corners=False)
+            patch_pos = patch_pos.reshape(1, embed_dim, new_hw * new_hw).transpose(1, 2)
+            pos_embed = torch.cat([token_pos, patch_pos], dim=1)
+        else:
+            pos_embed = self.pos_embed
+
+        x = x + pos_embed
 
         # Apply blocks
         for block in self.blocks:

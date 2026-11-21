@@ -14,10 +14,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from inference_server import __version__
+from inference_server import __version__, config
 from inference_server.engine.loader import load_model
 from inference_server.engine.multi_loader import load_all_models
+from inference_server.engine.redrot_segmentation import load_redrot_segmenter
+from inference_server.engine.v2_loader import load_v2_classifiers
 from inference_server.routes.analytics import router as analytics_router
 from inference_server.routes.feedback import router as feedback_router
 from inference_server.routes.health import router as health_router
@@ -50,6 +53,24 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         # Load ALL models for ensemble inference
         models = load_all_models()
         logger.info("Loaded %d backbone models for ensemble inference.", len(models))
+
+        # Optionally load Model 2 (V2 dual-head classifiers) into the ensemble
+        if config.ENABLE_V2:
+            try:
+                v2 = load_v2_classifiers()
+                logger.info("Loaded %d V2 classifiers into the ensemble.", len(v2))
+            except Exception:
+                logger.exception("Failed to load V2 classifiers; continuing with V1 ensemble only.")
+
+        # Load the Red Rot segmentation specialist (Stage 2 of Expert View)
+        try:
+            load_redrot_segmenter()
+            logger.info("Red Rot segmentation specialist loaded.")
+        except Exception:
+            logger.exception(
+                "Failed to load Red Rot segmenter on startup; "
+                "/predict/expert will return 503 for Red Rot until resolved."
+            )
     except Exception:
         logger.exception("Failed to load models on startup")
         # Server will still start; /health/ready will report not ready
@@ -69,6 +90,15 @@ app = FastAPI(
     ),
     version=__version__,
     lifespan=lifespan,
+)
+
+# CORS — allow the Web Expert View client to call the API from the browser.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=config.CORS_ORIGINS != ["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Health & inference routes

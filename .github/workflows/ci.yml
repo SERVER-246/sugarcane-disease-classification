@@ -181,11 +181,59 @@ jobs:
           bandit -r BASE-BACK/ -ll -ii -f txt || echo "Security scan completed with findings"
 
   # ===========================================================================
+  # Web Expert View (Q5/Q6) - build
+  # ===========================================================================
+  web-build:
+    name: Web Expert View (build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/web-expert/package-lock.json
+
+      - name: Install and build
+        working-directory: app/web-expert
+        run: |
+          npm ci
+          npm run build
+
+  # ===========================================================================
+  # Android Expert View (Q5/Q6) - assembleDebug
+  # ===========================================================================
+  android-build:
+    name: Android Expert View (assembleDebug)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        working-directory: app/android-expert
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+  # ===========================================================================
   # All Checks Summary
   # ===========================================================================
   ci-success:
     name: CI Success
-    needs: [lint, test, build-check]
+    needs: [lint, test, build-check, web-build, android-build]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -194,7 +242,9 @@ jobs:
           echo "Lint result: ${{ needs.lint.result }}"
           echo "Test result: ${{ needs.test.result }}"
           echo "Build check result: ${{ needs.build-check.result }}"
-          
+          echo "Web build result: ${{ needs.web-build.result }}"
+          echo "Android build result: ${{ needs.android-build.result }}"
+
           if [ "${{ needs.lint.result }}" != "success" ]; then
             echo "❌ Lint failed"
             exit 1
@@ -205,6 +255,14 @@ jobs:
           fi
           if [ "${{ needs.build-check.result }}" != "success" ]; then
             echo "❌ Build check failed"
+            exit 1
+          fi
+          if [ "${{ needs.web-build.result }}" != "success" ]; then
+            echo "❌ Web build failed"
+            exit 1
+          fi
+          if [ "${{ needs.android-build.result }}" != "success" ]; then
+            echo "❌ Android build failed"
             exit 1
           fi
           echo "✅ All required CI checks passed"
