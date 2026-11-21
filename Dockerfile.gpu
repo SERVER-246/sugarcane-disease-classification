@@ -9,7 +9,7 @@
 
 # Base image with CUDA 12.4.1 + cuDNN support
 # Note: cuDNN runtime exists for 12.4.1 (not 12.4.0)
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 as base
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 AS base
 
 # Set build-time environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -40,6 +40,11 @@ WORKDIR /build
 # Copy requirements first for better caching
 COPY requirements.txt .
 
+# Upgrade pip first: the apt-provided pip is old enough to discard the
+# typing-extensions wheel, forcing a source build whose backend (flit_core)
+# cannot be fetched from the Torch-only index.
+RUN pip install --no-cache-dir --upgrade pip
+
 # Install CUDA-enabled PyTorch
 RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
@@ -50,7 +55,7 @@ RUN pip install --no-cache-dir -r requirements.txt || true
 # Production Image
 # =============================================================================
 # Using CUDA 12.4.1 with cuDNN for optimal deep learning performance
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 as production
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 AS production
 
 # Set runtime environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

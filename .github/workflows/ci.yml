@@ -221,6 +221,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Older v3 releases default to "tools platform-tools"; the standalone
+          # "tools" package was removed from the SDK repo and fails the job.
+          packages: 'platform-tools'
 
       - name: Build debug APK
         working-directory: app/android-expert

@@ -7,7 +7,7 @@
 # ============================================================================
 
 # Multi-stage build for smaller final image
-FROM python:3.10-slim as builder
+FROM python:3.10-slim AS builder
 
 # Set build-time environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -25,6 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first for better caching
 COPY requirements-ci.txt .
 
+# Upgrade pip first: the image's bundled pip is old enough to discard the
+# typing-extensions wheel, forcing a source build whose backend (flit_core)
+# cannot be fetched from the Torch-only index.
+RUN pip install --no-cache-dir --upgrade pip
+
 # Install CPU-only PyTorch and dependencies
 RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements-ci.txt
@@ -32,7 +37,7 @@ RUN pip install --no-cache-dir -r requirements-ci.txt
 # =============================================================================
 # Production Image
 # =============================================================================
-FROM python:3.10-slim as production
+FROM python:3.10-slim AS production
 
 # Set runtime environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
